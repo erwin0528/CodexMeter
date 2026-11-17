@@ -406,10 +406,13 @@
     <string name="overview_widget_recommend_format">现在用：%1$s</string>
     <string name="overview_widget_recommend_with_reset_format">现在用：%1$s · %2$s 重置</string>
     <string name="overview_widget_updated_format">%1$s 更新</string>
-    <string name="overview_widget_expiring">快重置</string>
     <string name="waste_reminder_title_format">%1$s 快重置了</string>
     <string name="waste_reminder_body_format">还剩 %1$d%%，%2$s 重置，趁现在丢任务给它。</string>
     <string name="settings_update_status_ready_to_install">下载完成，正在打开安装画面…</string>
     <string name="settings_update_status_install_failed">无法打开安装画面，请到「下载」文件夹手动打开 APK。</string>
     <string name="settings_update_install_format">安装 v%1$s</string>
+    <string name="overview_pace_under">快去用</string>
+    <string name="overview_pace_on_track">节奏刚好</string>
+    <string name="overview_pace_over">用太快</string>
+    <string name="overview_pace_depleted">用完了</string>
 </resources>

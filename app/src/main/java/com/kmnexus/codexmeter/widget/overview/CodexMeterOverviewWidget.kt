@@ -17,11 +17,9 @@ import androidx.glance.ImageProvider
 import androidx.glance.LocalSize
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
-import androidx.glance.appwidget.LinearProgressIndicator
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.action.actionStartActivity
-import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.color.ColorProvider
@@ -44,8 +42,6 @@ import androidx.glance.text.TextStyle
 import com.kmnexus.codexmeter.CodexMeterApp
 import com.kmnexus.codexmeter.MainActivity
 import com.kmnexus.codexmeter.R
-import com.kmnexus.codexmeter.domain.model.ProviderId
-import com.kmnexus.codexmeter.providers.ProviderRegistry
 import com.kmnexus.codexmeter.ui.navigation.CodexMeterLaunchDestination
 import com.kmnexus.codexmeter.ui.navigation.CodexMeterRoute
 import com.kmnexus.codexmeter.ui.quota.formatProviderBalance
@@ -60,12 +56,12 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 /**
- * 「AI 額度總覽」小工具：一個小工具同時列出所有帳號，每列一個帳號。
- * 每列：圖示、帳號名、主要額度大字＋進度條、副標（額度名稱 · 重置時間 · 第二個額度）。
+ * 「AI 額度總覽」小工具：雙圓環網格，一格一個帳號。
+ * 外圈＝5 小時剩餘、內圈＝7 天剩餘、刻度＝週期時間還剩多少；顏色代表用量節奏（見 QuotaPace）。
  * 右上角重新整理鈕會排一次立即刷新；點其他地方開 App 首頁。
  */
 class CodexMeterOverviewWidget : GlanceAppWidget() {
-    // Exact：依實際高度決定放幾列（見 OverviewLayout.rowCapacity）。
+    // Exact：依實際寬高決定幾欄幾排（見 OverviewLayout）。
     override val sizeMode: SizeMode = SizeMode.Exact
     override val stateDefinition = PreferencesGlanceStateDefinition
 
@@ -78,7 +74,8 @@ class CodexMeterOverviewWidget : GlanceAppWidget() {
 
         provideContent {
             val rows = OverviewRowsCodec.decode(currentState<Preferences>()[ROWS_KEY]).orEmpty()
-            OverviewContent(context, rows, LocalSize.current.height.value, Instant.now())
+            val size = LocalSize.current
+            OverviewContent(context, rows, size.width.value, size.height.value, Instant.now())
         }
     }
 
@@ -95,9 +92,16 @@ class CodexMeterOverviewWidget : GlanceAppWidget() {
 }
 
 @Composable
-private fun OverviewContent(context: Context, rows: List<OverviewRow>, heightDp: Float, now: Instant) {
-    val capacity = OverviewLayout.rowCapacity(heightDp, context.resources.configuration.fontScale)
-    val visible = rows.take(capacity)
+private fun OverviewContent(
+    context: Context,
+    rows: List<OverviewRow>,
+    widthDp: Float,
+    heightDp: Float,
+    now: Instant,
+) {
+    val fontScale = context.resources.configuration.fontScale
+    val columns = OverviewLayout.columns(widthDp)
+    val visible = rows.take(columns * OverviewLayout.gridRows(heightDp, fontScale))
     val hidden = rows.size - visible.size
     Box(
         modifier = GlanceModifier.fillMaxSize().clickable(actionStartActivity(launchIntent(context))),
@@ -117,7 +121,7 @@ private fun OverviewContent(context: Context, rows: List<OverviewRow>, heightDp:
                     modifier = GlanceModifier.padding(top = 6.dp),
                 )
             }
-            visible.forEach { AccountRow(context, it, now) }
+            AccountGrid(context, visible, OverviewLayout.columns(widthDp), now)
         }
     }
 }
@@ -187,80 +191,73 @@ private fun TitleRow(context: Context, rows: List<OverviewRow>, hiddenCount: Int
 }
 
 @Composable
-private fun AccountRow(context: Context, row: OverviewRow, now: Instant) {
-    // 列高不寫死：跟著內容（含進度條）長，之前固定 48dp 在大字體手機上會把進度條裁掉。
-    Column(
-        modifier = GlanceModifier.fillMaxWidth().padding(top = 8.dp),
-    ) {
-        Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            ProviderRegistry.iconFor(ProviderId(row.providerId))?.let { icon ->
-                Image(
-                    provider = ImageProvider(icon),
-                    contentDescription = null,
-                    modifier = GlanceModifier.width(16.dp).height(16.dp),
-                    colorFilter = ColorFilter.tint(InkText),
-                )
-                Spacer(modifier = GlanceModifier.width(8.dp))
+private fun AccountGrid(context: Context, rows: List<OverviewRow>, columns: Int, now: Instant) {
+    rows.chunked(columns).forEach { line ->
+        Row(modifier = GlanceModifier.fillMaxWidth().padding(top = 8.dp)) {
+            line.forEach { row ->
+                Box(modifier = GlanceModifier.defaultWeight()) { AccountCell(context, row, now) }
             }
-            Column(modifier = GlanceModifier.defaultWeight()) {
-                Text(
-                    text = row.accountName,
-                    style = TextStyle(color = InkText, fontSize = 13.sp, fontWeight = FontWeight.Medium),
-                    maxLines = 1,
-                )
-                Text(
-                    text = subline(context, row, now),
-                    style = TextStyle(color = MutedText, fontSize = 11.sp),
-                    maxLines = 1,
-                )
-            }
-            Spacer(modifier = GlanceModifier.width(8.dp))
-            ValueText(context, row, now)
-        }
-        val fraction = row.main?.progressFraction
-        if (fraction != null && !row.needsAttention) {
-            Spacer(modifier = GlanceModifier.height(5.dp))
-            LinearProgressIndicator(
-                progress = fraction,
-                modifier = GlanceModifier.fillMaxWidth().height(5.dp).cornerRadius(3.dp),
-                color = row.main.tone.statusAccentProvider(),
-                backgroundColor = TrackColor,
-            )
+            // 最後一排不滿時補空位，讓格子寬度一致。
+            repeat(columns - line.size) { Spacer(modifier = GlanceModifier.defaultWeight()) }
         }
     }
 }
 
 @Composable
-private fun ValueText(context: Context, row: OverviewRow, now: Instant) {
+private fun AccountCell(context: Context, row: OverviewRow, now: Instant) {
+    val pace = QuotaPaceCalculator.pace(row, now)
     val main = row.main
-    // 需要重新登入、或完全沒有資料時，右側直接寫狀態，比一個「--」更清楚。
-    if (row.needsAttention || main == null) {
-        val tone = if (row.needsAttention) WidgetQuotaTone.Danger else WidgetQuotaTone.Neutral
-        Text(
-            text = context.getString(statusLabelFor(row)),
-            style = TextStyle(color = tone.statusAccentProvider(), fontSize = 12.sp, fontWeight = FontWeight.Bold),
-            maxLines = 1,
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Image(
+            provider = ImageProvider(ringBitmap(context, row, pace, now)),
+            contentDescription = listOfNotNull(row.accountName, main?.valueText(context)).joinToString(" "),
+            modifier = GlanceModifier.width(OverviewLayout.RING_DP.dp).height(OverviewLayout.RING_DP.dp),
         )
-        return
+        Spacer(modifier = GlanceModifier.width(8.dp))
+        Column {
+            Text(
+                text = row.accountName,
+                style = TextStyle(color = MutedText, fontSize = 12.sp),
+                maxLines = 1,
+            )
+            if (row.needsAttention || main == null) {
+                // 需要重新登入或沒資料：直接寫狀態，比一個「--」清楚。
+                val tone = if (row.needsAttention) WidgetQuotaTone.Danger else WidgetQuotaTone.Neutral
+                Text(
+                    text = context.getString(statusLabelFor(row)),
+                    style = TextStyle(color = tone.statusAccentProvider(), fontSize = 13.sp, fontWeight = FontWeight.Bold),
+                    maxLines = 1,
+                )
+            } else {
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = main.valueText(context),
+                        style = TextStyle(color = paceText(pace, main.tone), fontSize = 18.sp, fontWeight = FontWeight.Bold),
+                        maxLines = 1,
+                    )
+                    paceLabelRes(pace)?.let { label ->
+                        Text(
+                            text = context.getString(label),
+                            style = TextStyle(color = paceText(pace, main.tone), fontSize = 11.sp, fontWeight = FontWeight.Medium),
+                            modifier = GlanceModifier.padding(start = 4.dp, bottom = 2.dp),
+                            maxLines = 1,
+                        )
+                    }
+                }
+                Text(
+                    text = cellDetail(context, row, now),
+                    style = TextStyle(color = MutedText, fontSize = 11.sp),
+                    maxLines = 1,
+                )
+            }
+        }
     }
-    // 快作廢（快重置還剩很多）用藍色強調：這是「快去用」的提示，跟紅黃的「快沒了」區分開。
-    val color = if (UseItAdvisor.isExpiringUnused(row, now)) {
-        WidgetQuotaTone.Neutral.statusAccentProvider()
-    } else {
-        main.tone.percentProvider()
-    }
-    Text(
-        text = main.valueText(context),
-        style = TextStyle(color = color, fontSize = 20.sp, fontWeight = FontWeight.Bold),
-        maxLines = 1,
-    )
 }
 
-private fun subline(context: Context, row: OverviewRow, now: Instant): String {
-    val main = row.main ?: return context.getString(statusLabelFor(row))
+/** 第三行：「18:26 重置 · 7 天 89%」；資料可能過期時補狀態，避免把舊數字當現在。 */
+private fun cellDetail(context: Context, row: OverviewRow, now: Instant): String {
+    val main = row.main ?: return ""
     val parts = buildList {
-        if (UseItAdvisor.isExpiringUnused(row, now)) add(context.getString(R.string.overview_widget_expiring))
-        add(compactLabel(context.getString(quotaWindowLabelRes(main.windowId, main.limitWindowSeconds))))
         main.resetAtEpochMillis?.let {
             add(context.getString(R.string.widget_reset_at_compact_format, formatReset(context, Instant.ofEpochMilli(it), now)))
         }
@@ -273,10 +270,52 @@ private fun subline(context: Context, row: OverviewRow, now: Instant): String {
                 ),
             )
         }
-        // 資料可能過期／刷新失敗時補一個提示，避免把舊數字當成現在。
         if (row.status != WidgetQuotaStatus.Fresh) add(context.getString(statusLabelFor(row)))
     }
     return parts.joinToString(" · ")
+}
+
+private fun ringBitmap(context: Context, row: OverviewRow, pace: QuotaPace, now: Instant): android.graphics.Bitmap {
+    val main = row.main
+    val night = (context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+        android.content.res.Configuration.UI_MODE_NIGHT_YES
+    val attention = row.needsAttention || main == null
+    return OverviewRingRenderer.render(
+        spec = OverviewRingRenderer.Spec(
+            outerFraction = if (attention) null else main.progressFraction,
+            innerFraction = if (attention) null else row.secondary?.progressFraction,
+            timeLeftFraction = if (attention) null else QuotaPaceCalculator.timeLeftFraction(main, now),
+            color = paceRingColor(pace),
+            tickColor = if (night) 0xFFFFFFFF.toInt() else 0xFF151821.toInt(),
+        ),
+        sizeDp = OverviewLayout.RING_DP.toFloat(),
+        density = context.resources.displayMetrics.density,
+    )
+}
+
+// 節奏配色：藍＝用太慢快去用、綠＝剛好、黃＝用太快、紅＝用完。藍色刻意跟「快沒了」的紅黃分開。
+private fun paceRingColor(pace: QuotaPace): Int = when (pace) {
+    QuotaPace.UnderUsing -> 0xFF378ADD.toInt()
+    QuotaPace.OnTrack -> 0xFF1D9E75.toInt()
+    QuotaPace.OverUsing -> 0xFFEF9F27.toInt()
+    QuotaPace.Depleted -> 0xFFE24B4A.toInt()
+    QuotaPace.Unknown -> 0xFF888780.toInt()
+}
+
+private fun paceText(pace: QuotaPace, fallback: WidgetQuotaTone) = when (pace) {
+    QuotaPace.UnderUsing -> ColorProvider(day = Color(0xFF185FA5), night = Color(0xFF85B7EB))
+    QuotaPace.OnTrack -> ColorProvider(day = Color(0xFF0F6E56), night = Color(0xFF5DCAA5))
+    QuotaPace.OverUsing -> ColorProvider(day = Color(0xFF854F0B), night = Color(0xFFEF9F27))
+    QuotaPace.Depleted -> ColorProvider(day = Color(0xFFA32D2D), night = Color(0xFFF09595))
+    QuotaPace.Unknown -> fallback.percentProvider()
+}
+
+private fun paceLabelRes(pace: QuotaPace): Int? = when (pace) {
+    QuotaPace.UnderUsing -> R.string.overview_pace_under
+    QuotaPace.OnTrack -> R.string.overview_pace_on_track
+    QuotaPace.OverUsing -> R.string.overview_pace_over
+    QuotaPace.Depleted -> R.string.overview_pace_depleted
+    QuotaPace.Unknown -> null
 }
 
 /** 副標空間很窄：「5 小時額度」縮成「5 小時」；只剩「額度」這種通用名稱時保留原文。 */
@@ -324,4 +363,3 @@ private fun launchIntent(context: Context): Intent =
 // 與單帳號小工具同一組配色（淺色／深色），兩種小工具並排時看起來是同一套。
 private val InkText = ColorProvider(day = Color(0xFF151821), night = Color(0xFFFFFFFF))
 private val MutedText = ColorProvider(day = Color(0x8C151821), night = Color(0xE6FFFFFF))
-private val TrackColor = ColorProvider(day = Color(0x226A86B0), night = Color(0x33B9D8FF))

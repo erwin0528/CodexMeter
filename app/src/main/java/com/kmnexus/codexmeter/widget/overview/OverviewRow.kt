@@ -93,17 +93,24 @@ object OverviewRowsCodec {
 
 /** 版面尺寸計算（dp），抽出來方便單元測試。 */
 object OverviewLayout {
-    const val PADDING_DP = 12
+    const val PADDING_DP = 10
     const val HEADER_HEIGHT_DP = 40
-    const val ROW_HEIGHT_DP = 56
+    const val RING_DP = 52
 
-    /**
-     * 依小工具高度決定能放幾列，至少一列。
-     * 列高會隨系統字體放大（[fontScale]），否則大字體時文字把進度條擠出可視範圍。
-     */
-    fun rowCapacity(heightDp: Float, fontScale: Float = 1f): Int {
-        val rowHeight = ROW_HEIGHT_DP * fontScale.coerceAtLeast(1f)
-        return ((heightDp - PADDING_DP * 2 - HEADER_HEIGHT_DP) / rowHeight).toInt().coerceAtLeast(1)
+    /** 三行字的高度（12＋18＋11sp 含行距）；會隨系統字體放大。 */
+    private const val TEXT_BLOCK_DP = 44
+    private const val CELL_GAP_DP = 8
+
+    /** 兩欄至少要這麼寬，否則名字和百分比會被擠掉。 */
+    private const val TWO_COLUMN_MIN_WIDTH_DP = 250
+
+    fun columns(widthDp: Float): Int = if (widthDp >= TWO_COLUMN_MIN_WIDTH_DP) 2 else 1
+
+    /** 依高度決定能放幾排，至少一排。 */
+    fun gridRows(heightDp: Float, fontScale: Float = 1f): Int {
+        // 一格高度＝圓環和三行字取高者＋間距；只有字會跟著系統字體變大，圓環不會。
+        val cellHeight = maxOf(RING_DP.toFloat(), TEXT_BLOCK_DP * fontScale.coerceAtLeast(1f)) + CELL_GAP_DP
+        return ((heightDp - PADDING_DP * 2 - HEADER_HEIGHT_DP) / cellHeight).toInt().coerceAtLeast(1)
     }
 }
 
