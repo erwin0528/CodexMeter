@@ -31,6 +31,12 @@ sealed interface AppUpdateDownloadResult {
 
 fun interface AppUpdateDownloadUseCase {
     suspend fun download(update: AppUpdateInfo): AppUpdateDownloadResult
+
+    /** 等系統下載器完成；成功回傳 true。預設（測試／未接線）不支援。 */
+    suspend fun awaitDownloaded(downloadId: Long): Boolean = false
+
+    /** 開啟系統安裝畫面；成功送出回傳 true。 */
+    fun launchInstall(downloadId: Long): Boolean = false
 }
 
 object NoopAppUpdateDownloadUseCase : AppUpdateDownloadUseCase {

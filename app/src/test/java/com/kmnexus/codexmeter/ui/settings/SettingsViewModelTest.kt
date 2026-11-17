@@ -581,6 +581,47 @@ class SettingsViewModelTest {
     }
 
     @Test
+    fun `finished download opens the installer and keeps an install button`() = runTest {
+        // 之前只交給系統下載器就結束，使用者看起來像按了沒反應；下載完要直接開安裝畫面。
+        val downloader = RecordingAppUpdateDownloadUseCase(downloadCompletes = true)
+        val viewModel = SettingsViewModel(
+            appUpdateChecker = ImmediateAppUpdateCheckUseCase(AppUpdateCheckResult.UpdateAvailable(appUpdateInfo())),
+            appUpdateDownloader = downloader,
+            currentVersionName = "0.1.0",
+        )
+
+        viewModel.checkForUpdates()
+        runCurrent()
+        viewModel.downloadPendingUpdate()
+        runCurrent()
+
+        val update = viewModel.uiState.value.update
+        assertEquals(listOf(42L), downloader.installedDownloadIds)
+        assertEquals(42L, update.readyToInstall?.downloadId)
+        assertEquals(R.string.settings_update_status_ready_to_install, update.statusLabelResId)
+    }
+
+    @Test
+    fun `installer that cannot open points the user to the downloads folder`() = runTest {
+        val downloader = RecordingAppUpdateDownloadUseCase(downloadCompletes = true, installLaunches = false)
+        val viewModel = SettingsViewModel(
+            appUpdateChecker = ImmediateAppUpdateCheckUseCase(AppUpdateCheckResult.UpdateAvailable(appUpdateInfo())),
+            appUpdateDownloader = downloader,
+            currentVersionName = "0.1.0",
+        )
+
+        viewModel.checkForUpdates()
+        runCurrent()
+        viewModel.downloadPendingUpdate()
+        runCurrent()
+
+        assertEquals(
+            R.string.settings_update_status_install_failed,
+            viewModel.uiState.value.update.statusLabelResId,
+        )
+    }
+
+    @Test
     fun `currency target pick persists and updates ui state`() = runTest {
         val store = RecordingCurrencyPreferenceStore(CurrencyPreferences())
         val viewModel = SettingsViewModel(currencyPreferenceStore = store)
@@ -842,12 +883,25 @@ class SettingsViewModelTest {
         override suspend fun checkForUpdate(currentVersionName: String): AppUpdateCheckResult = result
     }
 
-    private class RecordingAppUpdateDownloadUseCase : AppUpdateDownloadUseCase {
+    private class RecordingAppUpdateDownloadUseCase(
+        /** null＝下載一直沒完成（模擬還在下載中）。 */
+        private val downloadCompletes: Boolean? = null,
+        private val installLaunches: Boolean = true,
+    ) : AppUpdateDownloadUseCase {
         val requests = mutableListOf<AppUpdateInfo>()
+        val installedDownloadIds = mutableListOf<Long>()
 
         override suspend fun download(update: AppUpdateInfo): AppUpdateDownloadResult {
             requests += update
             return AppUpdateDownloadResult.Enqueued(downloadId = 42L)
+        }
+
+        override suspend fun awaitDownloaded(downloadId: Long): Boolean =
+            downloadCompletes ?: kotlinx.coroutines.awaitCancellation()
+
+        override fun launchInstall(downloadId: Long): Boolean {
+            installedDownloadIds += downloadId
+            return installLaunches
         }
     }
 

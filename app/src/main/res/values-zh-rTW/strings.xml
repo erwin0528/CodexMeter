@@ -409,4 +409,7 @@
     <string name="overview_widget_expiring">快重置</string>
     <string name="waste_reminder_title_format">%1$s 快重置了</string>
     <string name="waste_reminder_body_format">還剩 %1$d%%，%2$s 重置，趁現在丟任務給它。</string>
+    <string name="settings_update_status_ready_to_install">下載完成，正在開啟安裝畫面…</string>
+    <string name="settings_update_status_install_failed">無法開啟安裝畫面，請到「下載」資料夾手動開啟 APK。</string>
+    <string name="settings_update_install_format">安裝 v%1$s</string>
 </resources>

@@ -409,4 +409,7 @@
     <string name="overview_widget_expiring">Resetting soon</string>
     <string name="waste_reminder_title_format">%1$s resets soon</string>
     <string name="waste_reminder_body_format">%1$d%% left, resets at %2$s. Give it a task before it goes to waste.</string>
+    <string name="settings_update_status_ready_to_install">Download complete. Opening the installer…</string>
+    <string name="settings_update_status_install_failed">Could not open the installer. Open the APK from your Downloads folder instead.</string>
+    <string name="settings_update_install_format">Install v%1$s</string>
 </resources>

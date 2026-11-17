@@ -634,6 +634,7 @@ internal fun AppUpdateCard(
     update: SettingsUpdateUi,
     onCheckClick: () -> Unit,
     onAvailableUpdateClick: () -> Unit,
+    onInstallClick: () -> Unit,
     onAutoCheckChanged: (Boolean) -> Unit,
     onNotifyOnUpdateChanged: (Boolean) -> Unit,
 ) {
@@ -684,7 +685,17 @@ internal fun AppUpdateCard(
                 enabled = update.autoCheckEnabled,
             )
 
-            update.availableUpdate?.let { available ->
+            // 已下載完成：主按鈕直接變「安裝」，不用再去下載資料夾找檔案。
+            update.readyToInstall?.let { ready ->
+                Button(
+                    onClick = onInstallClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = CodexMeterShapes.md,
+                ) {
+                    Text(text = stringResource(R.string.settings_update_install_format, ready.versionName))
+                }
+            }
+            update.availableUpdate?.takeIf { update.readyToInstall == null }?.let { available ->
                 Button(
                     onClick = onAvailableUpdateClick,
                     modifier = Modifier.fillMaxWidth(),

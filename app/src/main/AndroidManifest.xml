@@ -3,6 +3,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- App 內更新：下載完直接開系統安裝畫面。只能裝同一把金鑰簽章的版本。 -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- Optional: lets the user exempt the app from battery optimization so Doze defers periodic
          refresh less aggressively. Never forced; only offered from Settings when not yet ignored. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />

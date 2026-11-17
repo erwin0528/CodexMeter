@@ -221,6 +221,7 @@ fun SettingsRoute(
         onAppUpdateCheckClick = viewModel::checkForUpdates,
         onAppUpdateDismiss = viewModel::dismissPendingUpdate,
         onAppUpdateDownloadClick = viewModel::downloadPendingUpdate,
+        onAppUpdateInstallClick = viewModel::installDownloadedUpdate,
         onAppUpdateAvailableClick = viewModel::showAvailableUpdateDialog,
         onAppUpdateAutoCheckChanged = viewModel::setAutoCheckUpdates,
         onAppUpdateNotifyChanged = viewModel::setNotifyOnUpdate,
@@ -278,6 +279,7 @@ fun SettingsScreen(
     onAppUpdateCheckClick: () -> Unit = {},
     onAppUpdateDismiss: () -> Unit = {},
     onAppUpdateDownloadClick: () -> Unit = {},
+    onAppUpdateInstallClick: () -> Unit = {},
     onAppUpdateAvailableClick: () -> Unit = {},
     onAppUpdateAutoCheckChanged: (Boolean) -> Unit = {},
     onAppUpdateNotifyChanged: (Boolean) -> Unit = {},
@@ -338,6 +340,7 @@ fun SettingsScreen(
             update = uiState.update,
             onCheckClick = onAppUpdateCheckClick,
             onAvailableUpdateClick = onAppUpdateAvailableClick,
+            onInstallClick = onAppUpdateInstallClick,
             onAutoCheckChanged = onAppUpdateAutoCheckChanged,
             onNotifyOnUpdateChanged = onAppUpdateNotifyChanged,
         )

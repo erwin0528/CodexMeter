@@ -205,7 +205,11 @@ data class SettingsUpdateUi(
     val autoCheckEnabled: Boolean = true,
     val notifyOnUpdateEnabled: Boolean = true,
     val availableUpdate: AppUpdateInfo? = null,
+    /** 已下載完成、等使用者按「安裝」的版本。 */
+    val readyToInstall: SettingsReadyToInstallUi? = null,
 )
+
+data class SettingsReadyToInstallUi(val downloadId: Long, val versionName: String)
 
 data class SettingsAboutUi(
     val versionName: String = "0.1.0",
@@ -806,6 +810,43 @@ class SettingsViewModel(
             }
             update { state ->
                 state.copy(update = result.toSettingsUpdateUi(state.update))
+            }
+            if (result is AppUpdateDownloadResult.Enqueued) {
+                awaitDownloadThenInstall(result.downloadId, pendingUpdate.versionName)
+            }
+        }
+    }
+
+    // 下載完自動開安裝畫面；就算當下被系統擋（App 不在前景），卡片上也會留「安裝」按鈕。
+    private suspend fun awaitDownloadThenInstall(downloadId: Long, versionName: String) {
+        val downloaded = runCatching { appUpdateDownloader.awaitDownloaded(downloadId) }.getOrDefault(false)
+        if (!downloaded) {
+            update { state ->
+                state.copy(
+                    update = state.update.copy(statusLabelResId = R.string.settings_update_status_download_failed),
+                )
+            }
+            return
+        }
+        update { state ->
+            state.copy(
+                update = state.update.copy(
+                    statusLabelResId = R.string.settings_update_status_ready_to_install,
+                    readyToInstall = SettingsReadyToInstallUi(downloadId, versionName),
+                ),
+            )
+        }
+        installDownloadedUpdate()
+    }
+
+    fun installDownloadedUpdate() {
+        val ready = _uiState.value.update.readyToInstall ?: return
+        val launched = runCatching { appUpdateDownloader.launchInstall(ready.downloadId) }.getOrDefault(false)
+        if (!launched) {
+            update { state ->
+                state.copy(
+                    update = state.update.copy(statusLabelResId = R.string.settings_update_status_install_failed),
+                )
             }
         }
     }
