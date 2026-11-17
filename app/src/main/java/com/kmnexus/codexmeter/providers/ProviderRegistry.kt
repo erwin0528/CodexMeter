@@ -10,6 +10,7 @@ object ProviderRegistry {
     val ZAI = ProviderId("zai")
     val MINIMAX = ProviderId("minimax")
     val CURSOR = ProviderId("cursor")
+    val GEMINI = ProviderId("gemini")
     val KIMI = ProviderId("kimi")
     val KIMI_CODE = ProviderId("kimi_code")
     val CLAUDE = ProviderId("claude")
@@ -68,6 +69,16 @@ object ProviderRegistry {
             iconResId = com.kmnexus.codexmeter.R.drawable.ic_brand_deepseek,
             authKind = ProviderAuthKind.ApiKeyImport,
             supportsBalance = true,
+            supportsRefill = false,
+            supportsInviteLimitSnooping = false,
+            isDefault = false,
+        ),
+        ProviderConfig(
+            providerId = GEMINI,
+            displayName = "Gemini",
+            iconResId = com.kmnexus.codexmeter.R.drawable.ic_brand_gemini,
+            authKind = ProviderAuthKind.CookieAuth,
+            supportsBalance = false,
             supportsRefill = false,
             supportsInviteLimitSnooping = false,
             isDefault = false,

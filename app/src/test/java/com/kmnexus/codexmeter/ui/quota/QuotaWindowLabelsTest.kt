@@ -49,6 +49,17 @@ class QuotaWindowLabelsTest {
     }
 
     @Test
+    fun `codex window reporting a calendar month duration is labelled monthly`() {
+        // ChatGPT Go 的 Codex 額度據報是單一月額度；Go 回傳的實際秒數尚未實測，所以 28～31 天都算月。
+        listOf(28, 30, 31).forEach { days ->
+            assertEquals(
+                R.string.window_label_monthly,
+                quotaWindowLabelRes(windowId = "five_hour", limitWindowSeconds = days * daySeconds),
+            )
+        }
+    }
+
+    @Test
     fun `codex window reporting an unnameable duration falls back to the generic label`() {
         assertEquals(
             R.string.window_label_generic,

@@ -104,6 +104,19 @@ sealed interface WebViewAuthConfig {
         val injectOnLoadJs: String? = null,
         /** Optional one-time tip dialog shown when the screen opens (string resource id). */
         val tipResId: Int? = null,
+        /**
+         * 交出完整 Cookie header，而非單一 cookie 值（Gemini：Google 驗證要整組 .google.com cookie）。
+         * targetCookieNames 仍用來判斷「是否已登入」。
+         */
+        val submitFullCookieHeader: Boolean = false,
+        /**
+         * 獨立登入：開頁前與離開頁面時都清空 WebView 的 Cookie 與網站儲存。
+         * - 開頁前清：Google 會沿用既有登入，不清的話新增第二個帳號時會直接抓到第一個帳號。
+         * - 離開時清：WebView 的 Cookie 資料庫沒有加密，Google 整組登入 Cookie 不該留在那裡；
+         *   需要的那份已經用 Keystore 加密存進 SecureSessionStore。
+         * 其他 provider 的憑證早已加密保存，清掉 WebView 這份不影響它們。
+         */
+        val isolateCookieSession: Boolean = false,
     ) : WebViewAuthConfig
 
     data class OAuthIntercept(
@@ -332,7 +345,14 @@ private fun CookieAuthBody(
     val noSession = stringResource(R.string.auth_cookie_no_session)
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
     DisposableEffect(loginUrl) {
-        onDispose { webViewRef = null }
+        onDispose {
+            webViewRef = null
+            if (config.isolateCookieSession) {
+                val cm = CookieManager.getInstance()
+                cm.removeAllCookies { cm.flush() }
+                android.webkit.WebStorage.getInstance().deleteAllData()
+            }
+        }
     }
 
     // Publish the top-bar actions; re-published when the active region (and thus login URL / cookie
@@ -354,7 +374,11 @@ private fun CookieAuthBody(
             CookieManager.getInstance().flush()
             fun captureCookie() {
                 val value = (config.cookiePaths + "").firstNotNullOfOrNull { path ->
-                    readTargetCookie("https://$cookieDomain$path", config.targetCookieNames)
+                    readCookieCredential(
+                        "https://$cookieDomain$path",
+                        config.targetCookieNames,
+                        config.submitFullCookieHeader,
+                    )
                 }
                 if (value != null) onCredential(value, null) else onError(noSession)
             }
@@ -429,11 +453,22 @@ private fun CookieAuthBody(
                                 // a pre-login guest cookie.
                                 cookieUrl = if (config.autoCapture) "https://$cookieDomain" else null,
                                 targetCookieNames = config.targetCookieNames,
+                                submitFullCookieHeader = config.submitFullCookieHeader,
                                 onLoadJs = config.injectOnLoadJs,
                                 onCookie = { onCredential(it, null) },
                             )
                             webViewRef = this
-                            loadUrl(loginUrl)
+                            if (config.isolateCookieSession) {
+                                // removeAllCookies 是非同步的，要等清完再載入，否則會沿用舊登入。
+                                val cm = CookieManager.getInstance()
+                                cm.removeAllCookies {
+                                    cm.flush()
+                                    android.webkit.WebStorage.getInstance().deleteAllData()
+                                    loadUrl(loginUrl)
+                                }
+                            } else {
+                                loadUrl(loginUrl)
+                            }
                         }
                     },
                 )
@@ -658,7 +693,8 @@ private fun configureAuthWebView(webView: WebView, useSoftwareLayer: Boolean) {
         loadsImagesAutomatically = true
         useWideViewPort = true
         loadWithOverviewMode = true
-        mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+        // 登入頁全是 HTTPS；禁止 HTTPS 頁面混入 HTTP 子資源，避免被中間人竄改登入頁內容。
+        mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
         // Present as Chrome (drop the WebView "wv"/"Version" tokens) so Google sign-in and Cloudflare
         // accept the client. (Confirmed not the cause of Kimi's blank render.)
         userAgentString = userAgentString
@@ -670,6 +706,7 @@ private fun configureAuthWebView(webView: WebView, useSoftwareLayer: Boolean) {
 private class CookieCaptureClient(
     private val cookieUrl: String?,
     private val targetCookieNames: List<String>,
+    private val submitFullCookieHeader: Boolean,
     private val onLoadJs: String?,
     private val onCookie: (String) -> Unit,
 ) : WebViewClient() {
@@ -685,10 +722,24 @@ private class CookieCaptureClient(
     private fun tryExtract() {
         // cookieUrl == null means manual-only capture (the user taps "Done").
         val target = cookieUrl ?: return
-        val value = readTargetCookie(target, targetCookieNames) ?: return
+        val value = readCookieCredential(target, targetCookieNames, submitFullCookieHeader) ?: return
         CookieManager.getInstance().flush()
         onCookie(value)
     }
+}
+
+/**
+ * 有目標 cookie 時回傳登入憑證：一般 provider 是該 cookie 的值，
+ * [submitFullCookieHeader] 時是 [cookieUrl] 會帶的完整 Cookie header（只交給 importer，不顯示也不記錄）。
+ */
+private fun readCookieCredential(
+    cookieUrl: String,
+    targetCookieNames: List<String>,
+    submitFullCookieHeader: Boolean,
+): String? {
+    val value = readTargetCookie(cookieUrl, targetCookieNames) ?: return null
+    if (!submitFullCookieHeader) return value
+    return CookieManager.getInstance().getCookie(cookieUrl)?.takeIf { it.isNotBlank() }
 }
 
 /** Reads the first non-empty target cookie value for [cookieUrl] from the shared cookie store. */

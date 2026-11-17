@@ -41,6 +41,7 @@ private val POSITIONAL_WINDOW_IDS = setOf("five_hour", "weekly")
 private const val FIVE_HOUR_SECONDS = 5 * 60 * 60
 private const val DAY_SECONDS = 24 * 60 * 60
 private const val WEEK_SECONDS = 7 * DAY_SECONDS
+private val MONTH_SECONDS_RANGE = (28 * DAY_SECONDS)..(31 * DAY_SECONDS)
 
 @StringRes
 fun quotaWindowLabelRes(windowId: String, limitWindowSeconds: Int? = null): Int {
@@ -68,14 +69,16 @@ private fun windowDurationLabelRes(limitWindowSeconds: Int): Int? = when (limitW
     FIVE_HOUR_SECONDS -> R.string.account_quota_five_hour_label
     DAY_SECONDS -> R.string.window_label_daily
     WEEK_SECONDS -> R.string.account_quota_weekly_label
+    // 月額度（例如 ChatGPT Go 的 Codex）：月份長度不固定，28～31 天都視為「每月」。
+    in MONTH_SECONDS_RANGE -> R.string.window_label_monthly
     else -> null
 }
 
 @StringRes
 private fun providerNamedLabelRes(windowId: String): Int = when (windowId) {
-    "zai_5h_window", "claude_5h_window", "minimax_interval" ->
+    "zai_5h_window", "claude_5h_window", "minimax_interval", "gemini_5h_window" ->
         R.string.account_quota_five_hour_label
-    "zai_weekly_window", "minimax_weekly" -> R.string.account_quota_weekly_label
+    "zai_weekly_window", "minimax_weekly", "gemini_weekly_window" -> R.string.account_quota_weekly_label
     "claude_extra_usage" -> R.string.window_label_extra_usage
     "balance" -> R.string.window_label_balance
     "cursor_plan" -> R.string.window_label_plan

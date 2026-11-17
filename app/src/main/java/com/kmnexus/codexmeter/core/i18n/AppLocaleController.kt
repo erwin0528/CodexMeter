@@ -10,6 +10,8 @@ import com.kmnexus.codexmeter.domain.settings.LanguagePreference
 import java.util.Locale
 
 object AppLocaleController {
+    private val TRADITIONAL_CHINESE_REGIONS = setOf("TW", "HK", "MO")
+
     fun ensureFollowsSystemLocale(context: Context) {
         clearPlatformLocaleOverride(context)
         updateProcessResources(context, supportedSystemLocaleList())
@@ -62,15 +64,15 @@ object AppLocaleController {
     private fun supportedLocaleFor(locale: Locale): Locale? =
         when (locale.language.lowercase(Locale.ROOT)) {
             "en" -> Locale.ENGLISH
-            "zh" -> {
-                if (
-                    locale.country.equals("CN", ignoreCase = true) ||
-                    locale.script.equals("Hans", ignoreCase = true)
-                ) {
+            "zh" -> when {
+                // 正體中文（台灣用語）：繁體字系統（台灣、香港、澳門或 Hant 字集）都用 zh-TW 資源。
+                locale.script.equals("Hant", ignoreCase = true) ||
+                    locale.country.uppercase(Locale.ROOT) in TRADITIONAL_CHINESE_REGIONS ->
+                    Locale.TRADITIONAL_CHINESE
+                locale.country.equals("CN", ignoreCase = true) ||
+                    locale.script.equals("Hans", ignoreCase = true) ->
                     Locale.SIMPLIFIED_CHINESE
-                } else {
-                    null
-                }
+                else -> null
             }
             else -> null
         }

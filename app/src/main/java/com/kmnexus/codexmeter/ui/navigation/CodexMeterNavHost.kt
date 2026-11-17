@@ -368,6 +368,18 @@ fun CodexMeterNavHost(
                                         cookieDomain = "cursor.com",
                                         targetCookieNames = listOf("WorkosCursorSessionToken"),
                                     )
+                                    // Gemini app 額度：Google 登入後交出 gemini.google.com 的完整 Cookie header。
+                                    // 獨立登入：開頁前清掉舊的 Google 登入（第二個帳號才不會沿用第一個），離開時也清掉 WebView 裡的副本。
+                                    "gemini" -> WebViewAuthConfig.Cookie(
+                                        providerId = entryMode.providerId,
+                                        loginUrl = "https://accounts.google.com/ServiceLogin" +
+                                            "?continue=https%3A%2F%2Fgemini.google.com%2Fusage",
+                                        cookieDomain = "gemini.google.com",
+                                        targetCookieNames = listOf("__Secure-1PSID"),
+                                        submitFullCookieHeader = true,
+                                        isolateCookieSession = true,
+                                        tipResId = R.string.auth_tip_gemini,
+                                    )
                                     // CodexBar uses a single www.kimi.com host (no region split);
                                     // the kimi-auth cookie is the JWT used for the billing API.
                                     // Load /code directly: /code/console client-redirects logged-out

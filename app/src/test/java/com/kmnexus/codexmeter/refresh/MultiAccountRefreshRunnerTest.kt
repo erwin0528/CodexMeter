@@ -43,6 +43,40 @@ class MultiAccountRefreshRunnerTest {
         )
     }
 
+    @Test
+    fun `gemini accounts are staggered while other providers keep full parallelism`() = runTest {
+        // 兩個 Google 帳號同一毫秒打同一個端點太像機器人，同家帳號之間要錯開。
+        val startedAt = mutableMapOf<String, Long>()
+        val provider = object : RefreshProvider {
+            override suspend fun refresh(
+                account: ProviderAccount,
+                trigger: RefreshTrigger,
+            ): ProviderRefreshResult {
+                startedAt[account.localAccountId.value] = testScheduler.currentTime
+                return ProviderRefreshResult.Failure(QuotaError.Network(diagnosticsDigest = null))
+            }
+        }
+        val runner = MultiAccountRefreshRunner(
+            refreshCoordinator = coordinator(provider),
+            sameProviderSpacingMillis = 5_000,
+        )
+
+        runner.refresh(
+            accounts = listOf(
+                account("gemini-a", AccountStatus.Active, providerId = "gemini"),
+                account("gemini-b", AccountStatus.Active, providerId = "gemini"),
+                account("codex-a", AccountStatus.Active),
+                account("codex-b", AccountStatus.Active),
+            ),
+            trigger = RefreshTrigger.Periodic,
+        )
+
+        assertEquals(0L, startedAt["gemini-a"])
+        assertEquals(5_000L, startedAt["gemini-b"])
+        assertEquals(0L, startedAt["codex-a"])
+        assertEquals(0L, startedAt["codex-b"])
+    }
+
     private fun coordinator(provider: RefreshProvider): RefreshCoordinator =
         RefreshCoordinator(
             provider = provider,
@@ -52,10 +86,14 @@ class MultiAccountRefreshRunnerTest {
             clock = clock,
         )
 
-    private fun account(localAccountId: String, status: AccountStatus): ProviderAccount =
+    private fun account(
+        localAccountId: String,
+        status: AccountStatus,
+        providerId: String = "codex",
+    ): ProviderAccount =
         ProviderAccount.createNew(
             localAccountId = LocalAccountId(localAccountId),
-            providerId = ProviderId("codex"),
+            providerId = ProviderId(providerId),
             providerAccountId = ProviderAccountId("acct-$localAccountId"),
             displayName = localAccountId,
             now = now,

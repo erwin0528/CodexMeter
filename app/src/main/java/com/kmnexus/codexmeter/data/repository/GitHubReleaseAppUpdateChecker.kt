@@ -77,8 +77,11 @@ class GitHubReleaseAppUpdateChecker(
     )
 
     private companion object {
-        const val DEFAULT_LATEST_RELEASE_API_URL = "https://api.github.com/repos/KyoMio/CodexMeter/releases/latest"
-        const val DEFAULT_RELEASES_PAGE_URL = "https://github.com/KyoMio/CodexMeter/releases"
+        // 指向 build 時的 repo（見 build.gradle.kts 的 UPDATE_REPOSITORY），fork 版會檢查自己的 Releases。
+        val DEFAULT_LATEST_RELEASE_API_URL =
+            "https://api.github.com/repos/${com.kmnexus.codexmeter.BuildConfig.UPDATE_REPOSITORY}/releases/latest"
+        val DEFAULT_RELEASES_PAGE_URL =
+            "https://github.com/${com.kmnexus.codexmeter.BuildConfig.UPDATE_REPOSITORY}/releases"
         const val HTTP_NOT_FOUND = 404
         val HTTP_SUCCESS_RANGE = 200..299
         const val APK_SUFFIX = ".apk"

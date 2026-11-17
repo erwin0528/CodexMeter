@@ -57,6 +57,12 @@ android {
                     getProperty("antigravity.oauth.clientSecret")
                 }
                 ?: ""
+        // 檢查更新用的 GitHub repo（owner/name）。GitHub Actions 會自動提供 GITHUB_REPOSITORY，
+        // 所以在誰的 fork 上 build，App 就檢查誰的 Releases；本機 build 可用 UPDATE_REPOSITORY 指定。
+        val updateRepository = System.getenv("UPDATE_REPOSITORY")
+            ?: System.getenv("GITHUB_REPOSITORY")
+            ?: "KyoMio/CodexMeter"
+        buildConfigField("String", "UPDATE_REPOSITORY", "\"$updateRepository\"")
         buildConfigField(
             "String",
             "ANTIGRAVITY_OAUTH_CLIENT_SECRET",

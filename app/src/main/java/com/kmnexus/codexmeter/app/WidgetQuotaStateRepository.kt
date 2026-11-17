@@ -17,6 +17,7 @@ import com.kmnexus.codexmeter.domain.settings.NotificationPreferences
 import com.kmnexus.codexmeter.widget.WidgetQuotaConfiguration
 import com.kmnexus.codexmeter.widget.WidgetQuotaState
 import com.kmnexus.codexmeter.widget.WidgetQuotaStateFactory
+import com.kmnexus.codexmeter.widget.WidgetOverviewLoader
 import com.kmnexus.codexmeter.widget.WidgetQuotaStateLoader
 import java.time.Clock
 
@@ -30,7 +31,21 @@ internal class WidgetQuotaStateRepository(
     private val currencyPreferenceReader: CurrencyPreferenceReader = DefaultWidgetCurrencyPreferenceReader,
     private val exchangeRateReader: ExchangeRateReader = DefaultWidgetExchangeRateReader,
     private val clock: Clock,
-) : WidgetQuotaStateLoader {
+) : WidgetQuotaStateLoader, WidgetOverviewLoader {
+    override suspend fun loadOverview(): List<WidgetQuotaState> =
+        providerAccountDao.listAll()
+            .map { it.toDomain() }
+            // 停用與已刪除的帳號不上總覽；需要重新登入的要留著，讓使用者看到要處理。
+            .filter { it.status == AccountStatus.Active || it.status == AccountStatus.NeedsReauth }
+            .map { account ->
+                loadWidgetQuotaState(
+                    WidgetQuotaConfiguration(
+                        providerId = account.providerId.value,
+                        localAccountId = account.localAccountId.value,
+                    ),
+                )
+            }
+
     override suspend fun loadWidgetQuotaState(configuration: WidgetQuotaConfiguration): WidgetQuotaState {
         val providerId = configuration.providerId?.takeIf { it.isNotBlank() }
         val localAccountId = configuration.localAccountId?.takeIf { it.isNotBlank() }

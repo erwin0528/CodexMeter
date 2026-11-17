@@ -14,6 +14,8 @@ import okhttp3.RequestBody.Companion.toRequestBody
 data class ProviderHttpResponse(
     val statusCode: Int,
     val body: String,
+    /** 回應帶的 Set-Cookie（只給需要輪替 Cookie 的 provider 用，例如 Gemini）；內容敏感，不得記錄。 */
+    val setCookieHeaders: List<String> = emptyList(),
 )
 
 class ProviderHttpClient(
@@ -45,6 +47,7 @@ class ProviderHttpClient(
                 ProviderHttpResponse(
                     statusCode = response.code,
                     body = response.body.string(),
+                    setCookieHeaders = response.headers("Set-Cookie"),
                 )
             }
         }
@@ -72,6 +75,7 @@ class ProviderHttpClient(
                 ProviderHttpResponse(
                     statusCode = response.code,
                     body = response.body.string(),
+                    setCookieHeaders = response.headers("Set-Cookie"),
                 )
             }
         }
@@ -94,6 +98,7 @@ class ProviderHttpClient(
                 ProviderHttpResponse(
                     statusCode = response.code,
                     body = response.body.string(),
+                    setCookieHeaders = response.headers("Set-Cookie"),
                 )
             }
         }

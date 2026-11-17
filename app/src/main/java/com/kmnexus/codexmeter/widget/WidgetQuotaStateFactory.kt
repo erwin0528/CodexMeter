@@ -52,6 +52,7 @@ class WidgetQuotaStateFactory(
             fields = fields,
             isUnconfigured = false,
             hasAccounts = true,
+            updatedAt = state.snapshot?.fetchedAt,
         )
     }
 

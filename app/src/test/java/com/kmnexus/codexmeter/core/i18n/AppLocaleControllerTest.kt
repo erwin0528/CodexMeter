@@ -77,6 +77,28 @@ class AppLocaleControllerTest {
     }
 
     @Test
+    fun `localized context resolves taiwan traditional chinese resources`() {
+        val context = AppLocaleController.localizedContext(
+            context = RuntimeEnvironment.getApplication(),
+            preference = LanguagePreference.TraditionalChineseTaiwan,
+        )
+
+        assertEquals("設定", context.getString(R.string.settings_title))
+        assertEquals("帳號", context.getString(R.string.tab_account))
+    }
+
+    @Test
+    fun `system language resolution maps traditional chinese systems to taiwan`() {
+        listOf("zh-TW", "zh-Hant-TW", "zh-HK").forEach { tag ->
+            assertEquals(
+                "zh-TW",
+                AppLocaleController.supportedSystemLocaleList(LocaleList.forLanguageTags("$tag,en"))
+                    .toLanguageTags(),
+            )
+        }
+    }
+
+    @Test
     fun `ensure follows system clears persisted platform locale override`() {
         val context = RuntimeEnvironment.getApplication()
         val localeManager = context.getSystemService(LocaleManager::class.java)

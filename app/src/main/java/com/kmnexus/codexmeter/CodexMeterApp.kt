@@ -146,6 +146,9 @@ class CodexMeterApp :
     val widgetQuotaStateLoader: WidgetQuotaStateLoader
         get() = appContainer.widgetQuotaStateLoader
 
+    val widgetOverviewLoader: com.kmnexus.codexmeter.widget.WidgetOverviewLoader
+        get() = appContainer.widgetOverviewLoader
+
     val apiKeyLoginUseCase: SessionLoginUseCase
         get() = appContainer.apiKeyLoginUseCase
 

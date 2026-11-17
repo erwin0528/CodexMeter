@@ -93,6 +93,9 @@ import com.kmnexus.codexmeter.providers.minimax.network.MiniMaxUsageClient
 import com.kmnexus.codexmeter.providers.cursor.CursorRefreshProvider
 import com.kmnexus.codexmeter.providers.cursor.auth.CursorSessionImporter
 import com.kmnexus.codexmeter.providers.cursor.network.CursorUsageClient
+import com.kmnexus.codexmeter.providers.gemini.GeminiRefreshProvider
+import com.kmnexus.codexmeter.providers.gemini.auth.GeminiSessionImporter
+import com.kmnexus.codexmeter.providers.gemini.network.GeminiUsageClient
 import com.kmnexus.codexmeter.providers.kimi.KimiRefreshProvider
 import com.kmnexus.codexmeter.providers.kimi.auth.KimiSessionImporter
 import com.kmnexus.codexmeter.providers.kimi.network.KimiQuotaClient
@@ -142,7 +145,11 @@ import com.kmnexus.codexmeter.ui.settings.SettingsBackgroundRefreshStatusReader
 import com.kmnexus.codexmeter.ui.settings.SettingsDiagnosticsReader
 import com.kmnexus.codexmeter.widget.WidgetDeletedAccountStateCleaner
 import com.kmnexus.codexmeter.widget.WidgetQuotaStateUpdater
+import com.kmnexus.codexmeter.widget.WidgetOverviewLoader
 import com.kmnexus.codexmeter.widget.WidgetQuotaStateLoader
+import com.kmnexus.codexmeter.widget.overview.OverviewWidgetPublisher
+import com.kmnexus.codexmeter.widget.overview.SharedPreferencesUseItReminderStore
+import com.kmnexus.codexmeter.widget.overview.UseItReminderPublisher
 import com.kmnexus.codexmeter.ui.home.HomeTrendHistoryLoader
 import java.time.Clock
 import java.time.Instant
@@ -181,6 +188,7 @@ class AppContainer private constructor(
     val updatePreferenceStore: UpdatePreferenceStore,
     val appUpdateNotifier: AppUpdateNotifier,
     val widgetQuotaStateLoader: WidgetQuotaStateLoader,
+    val widgetOverviewLoader: WidgetOverviewLoader,
     val startupMaintenance: StartupMaintenance,
     val apiKeyLoginUseCase: SessionLoginUseCase,
     val appearancePreferences: AppearancePreferenceStore,
@@ -312,6 +320,13 @@ class AppContainer private constructor(
                 payloadCipher = payloadCipher,
                 clock = clock,
             )
+            val geminiUsageClient = GeminiUsageClient(GeminiUsageClient.noRedirectHttpClient(), clock)
+            val geminiRefreshProvider = GeminiRefreshProvider(
+                client = geminiUsageClient,
+                sessionStore = sessionStore,
+                payloadCipher = payloadCipher,
+                clock = clock,
+            )
             val kimiQuotaClient = KimiQuotaClient(httpClient)
             val kimiRefreshProvider = KimiRefreshProvider(
                 client = kimiQuotaClient,
@@ -388,6 +403,7 @@ class AppContainer private constructor(
                     ProviderId("zai") to zaiRefreshProvider,
                     ProviderId("minimax") to minimaxRefreshProvider,
                     ProviderId("cursor") to cursorRefreshProvider,
+                    ProviderId("gemini") to geminiRefreshProvider,
                     ProviderId("kimi") to kimiRefreshProvider,
                     ProviderId("kimi_code") to kimiCodeRefreshProvider,
                     ProviderId("zai_balance") to zaiBalanceRefreshProvider,
@@ -416,6 +432,12 @@ class AppContainer private constructor(
             )
             val cursorSessionImporter = CursorSessionImporter(
                 usageClient = cursorUsageClient,
+                sessionStore = sessionStore,
+                payloadCipher = payloadCipher,
+                clock = clock,
+            )
+            val geminiSessionImporter = GeminiSessionImporter(
+                usageClient = geminiUsageClient,
                 sessionStore = sessionStore,
                 payloadCipher = payloadCipher,
                 clock = clock,
@@ -469,6 +491,7 @@ class AppContainer private constructor(
                 minimaxSessionImporter = minimaxSessionImporter,
                 zaiSessionImporter = zaiSessionImporter,
                 cursorSessionImporter = cursorSessionImporter,
+                geminiSessionImporter = geminiSessionImporter,
                 kimiSessionImporter = kimiSessionImporter,
                 kimiCodeSessionImporter = kimiCodeSessionImporter,
                 zaiBalanceSessionImporter = zaiBalanceSessionImporter,
@@ -489,6 +512,24 @@ class AppContainer private constructor(
                             context = appContext,
                             notificationPreferenceReader = notificationPreferences,
                             widgetQuotaStateLoader = widgetQuotaStateRepository,
+                        ),
+                        OverviewWidgetPublisher(appContext),
+                        UseItReminderPublisher(
+                            loader = widgetQuotaStateRepository,
+                            sink = AndroidNotificationSink(appContext),
+                            optionsReader = AndroidNotificationRequestOptionsReader(
+                                context = appContext,
+                                notificationPreferenceReader = notificationPreferences,
+                            ),
+                            store = SharedPreferencesUseItReminderStore(appContext),
+                            formatTime = { instant ->
+                                val locale = appContext.resources.configuration.locales[0]
+                                java.time.format.DateTimeFormatter
+                                    .ofPattern(android.text.format.DateFormat.getBestDateTimePattern(locale, "jm"), locale)
+                                    .withZone(java.time.ZoneId.systemDefault())
+                                    .format(instant)
+                            },
+                            clock = clock,
                         ),
                         CurrentQuotaNotificationPublisher(
                             notificationSink = AndroidNotificationSink(appContext),
@@ -573,6 +614,7 @@ class AppContainer private constructor(
             minimaxSessionImporter: MiniMaxSessionImporter,
             zaiSessionImporter: ZaiSessionImporter,
             cursorSessionImporter: CursorSessionImporter,
+            geminiSessionImporter: GeminiSessionImporter,
             kimiSessionImporter: KimiSessionImporter,
             kimiCodeSessionImporter: KimiCodeSessionImporter,
             zaiBalanceSessionImporter: ZaiBalanceSessionImporter,
@@ -647,6 +689,7 @@ class AppContainer private constructor(
                     ProviderId("zai") to zaiSessionImporter,
                     ProviderId("minimax") to minimaxSessionImporter,
                     ProviderId("cursor") to cursorSessionImporter,
+                    ProviderId("gemini") to geminiSessionImporter,
                     ProviderId("kimi") to kimiSessionImporter,
                     ProviderId("kimi_code") to kimiCodeSessionImporter,
                     ProviderId("zai_balance") to zaiBalanceSessionImporter,
@@ -874,6 +917,7 @@ class AppContainer private constructor(
                 updatePreferenceStore = updatePreferences,
                 appUpdateNotifier = appUpdateNotifier,
                 widgetQuotaStateLoader = widgetQuotaStateRepository,
+                widgetOverviewLoader = widgetQuotaStateRepository,
                 startupMaintenance = StartupMaintenance(
                     retentionPreferenceReader = retentionPreferences,
                     retentionCleanup = retentionCleanupRepository,

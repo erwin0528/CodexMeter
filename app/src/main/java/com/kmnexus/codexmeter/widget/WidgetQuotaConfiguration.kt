@@ -27,3 +27,8 @@ internal enum class WidgetConfigurationSection {
 fun interface WidgetQuotaStateLoader {
     suspend fun loadWidgetQuotaState(configuration: WidgetQuotaConfiguration): WidgetQuotaState
 }
+
+/** 總覽小工具：一次取所有啟用中（含需要重新登入）的帳號狀態，依帳號清單順序。 */
+fun interface WidgetOverviewLoader {
+    suspend fun loadOverview(): List<WidgetQuotaState>
+}
