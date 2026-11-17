@@ -174,6 +174,37 @@ class DeviceCodeLoginViewModelTest {
     }
 
     @Test
+    fun `returning to the app polls immediately instead of waiting for the next interval`() = runTest {
+        // 使用者在瀏覽器授權完切回 App：Android 會凍結背景 App，等下一輪間隔太慢，回來就該馬上查。
+        val account = account("local-1", "Codex Main")
+        val controller = RecordingDeviceCodeLoginController(
+            startResults = ArrayDeque(
+                listOf(
+                    DeviceCodeLoginResult.AwaitingUserAuthorization(
+                        attemptId = "attempt-1",
+                        userCode = "ABCD-EFGH",
+                        verificationUri = "https://auth.openai.com/codex/device",
+                        pollIntervalSeconds = 5,
+                        expiresAt = Instant.parse("2026-05-25T09:15:00Z"),
+                    ),
+                ),
+            ),
+            pollResults = ArrayDeque(
+                listOf(DeviceCodeLoginResult.Saved(attemptId = "attempt-1", account = account)),
+            ),
+        )
+        val viewModel = DeviceCodeLoginViewModel(controller = controller)
+
+        viewModel.startDeviceCodeLogin()
+        runCurrent()
+        viewModel.pollNowIfWaiting()
+        runCurrent()
+
+        assertEquals(DeviceCodeLoginUiStatus.Saved, viewModel.uiState.value.status)
+        assertEquals(1, controller.pollCount)
+    }
+
+    @Test
     fun `pending authorization keeps polling until saved`() = runTest {
         val account = account("local-2", "Codex Later")
         val controller = RecordingDeviceCodeLoginController(

@@ -4,6 +4,13 @@ on:
   push:
     tags:
       - 'v*'
+    # fork 版：推到 main 就自動發新版（patch +1），手機上的 App 會收到更新通知。
+    # 只改文件不發版。
+    branches:
+      - main
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
   workflow_dispatch: {}   # 手动触发，用于调试；使用最近一个 tag 的版本号
 
 concurrency:
@@ -32,6 +39,14 @@ jobs:
         run: |
           if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
             TAG="${GITHUB_REF_NAME}"
+          elif [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            # 推到 main：取最新的 vX.Y.Z tag，patch +1，先在本機打 tag 讓 Gradle 讀到新版本號；
+            # 遠端的 tag 由後面的 Create GitHub Release 步驟建立。
+            LATEST=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -v -- '-' | head -1)
+            LATEST="${LATEST:-v0.0.0}"
+            IFS='.' read -r MAJOR MINOR PATCH <<< "${LATEST#v}"
+            TAG="v${MAJOR}.${MINOR}.$((PATCH + 1))"
+            git tag "${TAG}" "${GITHUB_SHA}"
           else
             TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
           fi
@@ -177,6 +192,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           name: CodexMeter ${{ steps.version.outputs.version }}
           body: ${{ steps.changelog.outputs.body }}
           files: ${{ steps.apk.outputs.path }}

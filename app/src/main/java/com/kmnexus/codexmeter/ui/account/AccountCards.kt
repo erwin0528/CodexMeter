@@ -150,10 +150,14 @@ internal fun AccountCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
+                    // 收合狀態也看得到額度：正常帳號把「已連線」換成「5 小時 87% · 7 天 89%」，
+                    // 有狀況（需重新登入等）才顯示狀態文字，讓問題比較顯眼。
                     Text(
-                        text = stringResource(account.statusLabelResId),
+                        text = collapsedQuotaLine(account) ?: stringResource(account.statusLabelResId),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         text = account.lastSuccessfulRefreshAt?.let {
@@ -161,6 +165,8 @@ internal fun AccountCard(
                         } ?: stringResource(account.refreshSummaryResId),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
                 Row(
@@ -662,12 +668,28 @@ private fun AccountAvatar(account: AccountItemUi, size: Dp) {
 private fun formattedInstant(instant: Instant): String {
     val locale = LocalConfiguration.current.locales[0]
     return remember(instant, locale) {
-        DateTimeFormatter
-            .ofLocalizedDateTime(FormatStyle.SHORT)
-            .withLocale(locale)
-            .withZone(ZoneId.systemDefault())
-            .format(instant)
+        val zone = ZoneId.systemDefault()
+        // 今天的只顯示時間（「下午 11:22」），跨日才帶日期，避免卡片上一行塞不下而換行。
+        val isToday = instant.atZone(zone).toLocalDate() == java.time.LocalDate.now(zone)
+        val formatter = if (isToday) {
+            DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
+        } else {
+            DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT)
+        }
+        formatter.withLocale(locale).withZone(zone).format(instant)
     }
+}
+
+@Composable
+private fun collapsedQuotaLine(account: AccountItemUi): String? {
+    if (account.status != com.kmnexus.codexmeter.domain.model.AccountStatus.Active) return null
+    val parts = account.quotaSummaries.take(2).mapNotNull { summary ->
+        val value = summary.percent?.let { stringResource(R.string.account_quota_percent_format, it) }
+            ?: summary.valueText
+            ?: return@mapNotNull null
+        "${com.kmnexus.codexmeter.widget.overview.compactLabel(stringResource(summary.labelResId))} $value"
+    }
+    return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
 }
 
 @Composable

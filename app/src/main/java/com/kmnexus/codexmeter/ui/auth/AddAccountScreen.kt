@@ -66,6 +66,15 @@ fun AddAccountRoute(
     LaunchedEffect(entryMode, viewModel) {
         viewModel.applyEntryMode(entryMode)
     }
+    // 從瀏覽器授權完切回來時立刻查一次授權結果（見 DeviceCodeLoginViewModel.pollNowIfWaiting）。
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) viewModel.pollNowIfWaiting()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     LaunchedEffect(uiState.shouldNavigateHomeAfterSave, uiState.attemptId) {
         if (uiState.shouldNavigateHomeAfterSave) {
             onLoginSaved()

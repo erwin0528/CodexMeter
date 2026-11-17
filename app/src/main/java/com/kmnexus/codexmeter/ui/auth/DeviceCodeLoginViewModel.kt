@@ -165,12 +165,38 @@ class DeviceCodeLoginViewModel(
         }
     }
 
-    private fun schedulePoll(result: DeviceCodeLoginResult.AwaitingUserAuthorization) {
+    /**
+     * 使用者從瀏覽器授權完切回 App 時呼叫：馬上查一次，不等下一輪間隔。
+     * Android 會凍結背景 App，原本的倒數可能卡住，回到前景時立刻確認最直覺。
+     * 只在「等待授權」時觸發；正在查詢中就不重複送，避免被伺服器要求放慢（slow_down）。
+     */
+    fun pollNowIfWaiting() {
+        val state = _uiState.value
+        if (state.status != DeviceCodeLoginUiStatus.AwaitingUserAuthorization) return
+        val attemptId = state.attemptId ?: return
+        schedulePoll(
+            DeviceCodeLoginResult.AwaitingUserAuthorization(
+                attemptId = attemptId,
+                userCode = state.userCode.orEmpty(),
+                verificationUri = state.verificationUri.orEmpty(),
+                pollIntervalSeconds = state.pollIntervalSeconds ?: 5,
+                expiresAt = state.expiresAt ?: return,
+            ),
+            immediate = true,
+        )
+    }
+
+    private fun schedulePoll(
+        result: DeviceCodeLoginResult.AwaitingUserAuthorization,
+        immediate: Boolean = false,
+    ) {
         pollJob?.cancel()
         pollJob = viewModelScope.launch {
             var nextPoll = result
+            var skipDelay = immediate
             while (true) {
-                delay(nextPoll.pollIntervalSeconds.coerceAtLeast(1) * 1_000L)
+                if (!skipDelay) delay(nextPoll.pollIntervalSeconds.coerceAtLeast(1) * 1_000L)
+                skipDelay = false
                 if (_uiState.value.attemptId != nextPoll.attemptId) {
                     return@launch
                 }
