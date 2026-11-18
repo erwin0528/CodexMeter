@@ -86,15 +86,21 @@ class OverviewRowTest {
     }
 
     @Test
-    fun `grid follows widget size`() {
-        // 4×2 預設大小（約 190dp 高、寬過 250dp）要放得下 2 排 × 2 欄 = 4 個帳號。
-        assertEquals(2, OverviewLayout.columns(320f))
-        assertEquals(1, OverviewLayout.columns(200f))
-        assertEquals(2, OverviewLayout.gridRows(190f))
-        assertEquals(1, OverviewLayout.gridRows(60f))
-        // 大字體：格子變高，同樣高度放得比較少，但至少一排。
-        assertEquals(1, OverviewLayout.gridRows(190f, fontScale = 1.5f))
-        assertEquals(4, OverviewLayout.gridRows(350f))
+    fun `row capacity follows widget height and font scale`() {
+        // 列高 70dp（64dp 圓環＋6dp 間距）；約 270dp 高放得下 3 列。
+        assertEquals(1, OverviewLayout.rowCapacity(60f))
+        assertEquals(3, OverviewLayout.rowCapacity(270f))
+        assertEquals(4, OverviewLayout.rowCapacity(350f))
+        // 大字體：三行字比圓環高，列變高，至少一列。
+        assertEquals(2, OverviewLayout.rowCapacity(270f, fontScale = 1.5f))
+    }
+
+    @Test
+    fun `refreshing flag expires so the widget never gets stuck`() {
+        val now = Instant.parse("2026-11-18T04:00:00Z")
+        assertTrue(OverviewLayout.isRefreshing(now.minusSeconds(10).toEpochMilli(), now))
+        assertFalse(OverviewLayout.isRefreshing(now.minusSeconds(600).toEpochMilli(), now))
+        assertFalse(OverviewLayout.isRefreshing(null, now))
     }
 
     @Test

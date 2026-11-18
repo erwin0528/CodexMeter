@@ -40,6 +40,11 @@ class OverviewWidgetPublisher(context: Context) : CurrentQuotaStatePublisher {
 /** 小工具上的重新整理鈕：排一次立即刷新所有帳號（同一時間只排一個，連點不會重複打 API）。 */
 class OverviewRefreshAction : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        // 先讓小工具顯示「更新中…」，按下去馬上有回饋；新資料寫入時會清掉這個旗標。
+        androidx.glance.appwidget.state.updateAppWidgetState(context, glanceId) { prefs ->
+            prefs[CodexMeterOverviewWidget.REFRESHING_SINCE_KEY] = System.currentTimeMillis()
+        }
+        CodexMeterOverviewWidget().update(context, glanceId)
         val request = OneTimeWorkRequestBuilder<QuotaRefreshWorker>()
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
             .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)

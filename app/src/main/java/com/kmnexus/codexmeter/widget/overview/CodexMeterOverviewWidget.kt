@@ -56,12 +56,12 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 /**
- * 「AI 額度總覽」小工具：雙圓環網格，一格一個帳號。
+ * 「AI 額度總覽」小工具：條列，一列一個帳號，左邊雙圓環。
  * 外圈＝5 小時剩餘、內圈＝7 天剩餘、刻度＝週期時間還剩多少；顏色代表用量節奏（見 QuotaPace）。
  * 右上角重新整理鈕會排一次立即刷新；點其他地方開 App 首頁。
  */
 class CodexMeterOverviewWidget : GlanceAppWidget() {
-    // Exact：依實際寬高決定幾欄幾排（見 OverviewLayout）。
+    // Exact：依實際高度決定放幾列（見 OverviewLayout）。
     override val sizeMode: SizeMode = SizeMode.Exact
     override val stateDefinition = PreferencesGlanceStateDefinition
 
@@ -73,20 +73,28 @@ class CodexMeterOverviewWidget : GlanceAppWidget() {
         if (!hasSnapshot) writeSnapshot(context, id)
 
         provideContent {
-            val rows = OverviewRowsCodec.decode(currentState<Preferences>()[ROWS_KEY]).orEmpty()
-            val size = LocalSize.current
-            OverviewContent(context, rows, size.width.value, size.height.value, Instant.now())
+            val prefs = currentState<Preferences>()
+            val rows = OverviewRowsCodec.decode(prefs[ROWS_KEY]).orEmpty()
+            val now = Instant.now()
+            val refreshing = OverviewLayout.isRefreshing(prefs[REFRESHING_SINCE_KEY], now)
+            OverviewContent(context, rows, LocalSize.current.height.value, now, refreshing)
         }
     }
 
     companion object {
         internal val ROWS_KEY = stringPreferencesKey("overview_rows_json")
 
+        /** 按下重新整理的時間；有新資料寫進來就清掉（見 writeSnapshot）。 */
+        internal val REFRESHING_SINCE_KEY = androidx.datastore.preferences.core.longPreferencesKey("overview_refreshing_since")
+
         /** 從資料庫讀所有帳號的最新狀態，寫進這個小工具的狀態。只存額度數字，不含任何憑證。 */
         suspend fun writeSnapshot(context: Context, id: GlanceId) {
             val loader = (context.applicationContext as? CodexMeterApp)?.widgetOverviewLoader ?: return
             val rows = loader.loadOverview().mapNotNull { it.toOverviewRow() }
-            updateAppWidgetState(context, id) { prefs -> prefs[ROWS_KEY] = OverviewRowsCodec.encode(rows) }
+            updateAppWidgetState(context, id) { prefs ->
+                prefs[ROWS_KEY] = OverviewRowsCodec.encode(rows)
+                prefs.remove(REFRESHING_SINCE_KEY)
+            }
         }
     }
 }
@@ -95,13 +103,11 @@ class CodexMeterOverviewWidget : GlanceAppWidget() {
 private fun OverviewContent(
     context: Context,
     rows: List<OverviewRow>,
-    widthDp: Float,
     heightDp: Float,
     now: Instant,
+    refreshing: Boolean,
 ) {
-    val fontScale = context.resources.configuration.fontScale
-    val columns = OverviewLayout.columns(widthDp)
-    val visible = rows.take(columns * OverviewLayout.gridRows(heightDp, fontScale))
+    val visible = rows.take(OverviewLayout.rowCapacity(heightDp, context.resources.configuration.fontScale))
     val hidden = rows.size - visible.size
     Box(
         modifier = GlanceModifier.fillMaxSize().clickable(actionStartActivity(launchIntent(context))),
@@ -113,7 +119,7 @@ private fun OverviewContent(
             contentScale = ContentScale.FillBounds,
         )
         Column(modifier = GlanceModifier.fillMaxSize().padding(OverviewLayout.PADDING_DP.dp)) {
-            Header(context, rows, hidden, now)
+            Header(context, rows, hidden, now, refreshing)
             if (rows.isEmpty()) {
                 Text(
                     text = context.getString(R.string.overview_widget_empty),
@@ -121,15 +127,19 @@ private fun OverviewContent(
                     modifier = GlanceModifier.padding(top = 6.dp),
                 )
             }
-            AccountGrid(context, visible, OverviewLayout.columns(widthDp), now)
+            visible.forEach { row ->
+                Box(modifier = GlanceModifier.fillMaxWidth().padding(top = OverviewLayout.ROW_GAP_DP.dp)) {
+                    AccountRow(context, row, now)
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun Header(context: Context, rows: List<OverviewRow>, hiddenCount: Int, now: Instant) {
+private fun Header(context: Context, rows: List<OverviewRow>, hiddenCount: Int, now: Instant, refreshing: Boolean) {
     Column(modifier = GlanceModifier.fillMaxWidth().height(OverviewLayout.HEADER_HEIGHT_DP.dp)) {
-        TitleRow(context, rows, hiddenCount, now)
+        TitleRow(context, rows, hiddenCount, now, refreshing)
         // 第二行：「現在最該用哪個」，給想把額度用完的人一眼決定。
         val pick = UseItAdvisor.recommend(rows)
         if (pick != null) {
@@ -148,7 +158,7 @@ private fun Header(context: Context, rows: List<OverviewRow>, hiddenCount: Int, 
 }
 
 @Composable
-private fun TitleRow(context: Context, rows: List<OverviewRow>, hiddenCount: Int, now: Instant) {
+private fun TitleRow(context: Context, rows: List<OverviewRow>, hiddenCount: Int, now: Instant, refreshing: Boolean) {
     Row(
         modifier = GlanceModifier.fillMaxWidth().height(24.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -166,8 +176,16 @@ private fun TitleRow(context: Context, rows: List<OverviewRow>, hiddenCount: Int
             )
         }
         Spacer(modifier = GlanceModifier.defaultWeight())
-        // 顯示最舊的那筆更新時間：只要有一個帳號的資料舊了，使用者就該知道。
-        rows.mapNotNull { it.updatedAtEpochMillis }.minOrNull()?.let { oldest ->
+        // 按下重新整理後先顯示「更新中…」，不然資料沒變時看起來像按了沒反應。
+        if (refreshing) {
+            Text(
+                text = context.getString(R.string.overview_widget_refreshing),
+                style = TextStyle(color = WidgetQuotaTone.Neutral.statusAccentProvider(), fontSize = 10.sp),
+                maxLines = 1,
+            )
+        }
+        // 平常顯示最舊的那筆更新時間：只要有一個帳號的資料舊了，使用者就該知道。
+        if (!refreshing) rows.mapNotNull { it.updatedAtEpochMillis }.minOrNull()?.let { oldest ->
             Text(
                 text = context.getString(R.string.overview_widget_updated_format, formatReset(context, Instant.ofEpochMilli(oldest), now)),
                 style = TextStyle(color = MutedText, fontSize = 10.sp),
@@ -191,33 +209,20 @@ private fun TitleRow(context: Context, rows: List<OverviewRow>, hiddenCount: Int
 }
 
 @Composable
-private fun AccountGrid(context: Context, rows: List<OverviewRow>, columns: Int, now: Instant) {
-    rows.chunked(columns).forEach { line ->
-        Row(modifier = GlanceModifier.fillMaxWidth().padding(top = 8.dp)) {
-            line.forEach { row ->
-                Box(modifier = GlanceModifier.defaultWeight()) { AccountCell(context, row, now) }
-            }
-            // 最後一排不滿時補空位，讓格子寬度一致。
-            repeat(columns - line.size) { Spacer(modifier = GlanceModifier.defaultWeight()) }
-        }
-    }
-}
-
-@Composable
-private fun AccountCell(context: Context, row: OverviewRow, now: Instant) {
+private fun AccountRow(context: Context, row: OverviewRow, now: Instant) {
     val pace = QuotaPaceCalculator.pace(row, now)
     val main = row.main
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Image(
             provider = ImageProvider(ringBitmap(context, row, pace, now)),
             contentDescription = listOfNotNull(row.accountName, main?.valueText(context)).joinToString(" "),
             modifier = GlanceModifier.width(OverviewLayout.RING_DP.dp).height(OverviewLayout.RING_DP.dp),
         )
-        Spacer(modifier = GlanceModifier.width(8.dp))
-        Column {
+        Spacer(modifier = GlanceModifier.width(12.dp))
+        Column(modifier = GlanceModifier.defaultWeight()) {
             Text(
                 text = row.accountName,
-                style = TextStyle(color = MutedText, fontSize = 12.sp),
+                style = TextStyle(color = InkText, fontSize = 13.sp, fontWeight = FontWeight.Medium),
                 maxLines = 1,
             )
             if (row.needsAttention || main == null) {
@@ -232,7 +237,7 @@ private fun AccountCell(context: Context, row: OverviewRow, now: Instant) {
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
                         text = main.valueText(context),
-                        style = TextStyle(color = paceText(pace, main.tone), fontSize = 18.sp, fontWeight = FontWeight.Bold),
+                        style = TextStyle(color = paceText(pace, main.tone), fontSize = 20.sp, fontWeight = FontWeight.Bold),
                         maxLines = 1,
                     )
                     paceLabelRes(pace)?.let { label ->
@@ -246,7 +251,7 @@ private fun AccountCell(context: Context, row: OverviewRow, now: Instant) {
                 }
                 Text(
                     text = cellDetail(context, row, now),
-                    style = TextStyle(color = MutedText, fontSize = 11.sp),
+                    style = TextStyle(color = MutedText, fontSize = 12.sp),
                     maxLines = 1,
                 )
             }

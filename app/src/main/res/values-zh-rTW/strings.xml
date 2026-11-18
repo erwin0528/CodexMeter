@@ -415,4 +415,5 @@
     <string name="overview_pace_on_track">節奏剛好</string>
     <string name="overview_pace_over">用太快</string>
     <string name="overview_pace_depleted">用完了</string>
+    <string name="overview_widget_refreshing">更新中…</string>
 </resources>

@@ -17,8 +17,8 @@ import kotlin.math.sin
  */
 object OverviewRingRenderer {
     private const val MAX_SCALE = 2.5f
-    private const val OUTER_STROKE_DP = 6f
-    private const val INNER_STROKE_DP = 4f
+    private const val OUTER_STROKE_DP = 7f
+    private const val INNER_STROKE_DP = 5f
     private const val RING_GAP_DP = 2.5f
     private const val TRACK_COLOR = 0x4D8A8F99 // 半透明灰：淺色、深色背景都看得到
     private const val INNER_ALPHA = 150
