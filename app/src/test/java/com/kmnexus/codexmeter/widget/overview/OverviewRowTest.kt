@@ -87,12 +87,12 @@ class OverviewRowTest {
 
     @Test
     fun `row capacity follows widget height and font scale`() {
-        // 列高 70dp（64dp 圓環＋6dp 間距）；約 270dp 高放得下 3 列。
+        // 列高 72dp（三行字 66dp＋6dp 間距）；寧可少放一列也不要把最後一列切一半。
         assertEquals(1, OverviewLayout.rowCapacity(60f))
-        assertEquals(3, OverviewLayout.rowCapacity(270f))
-        assertEquals(4, OverviewLayout.rowCapacity(350f))
-        // 大字體：三行字比圓環高，列變高，至少一列。
-        assertEquals(2, OverviewLayout.rowCapacity(270f, fontScale = 1.5f))
+        assertEquals(2, OverviewLayout.rowCapacity(272f))
+        assertEquals(3, OverviewLayout.rowCapacity(300f))
+        // 大字體：列更高，至少一列。
+        assertEquals(1, OverviewLayout.rowCapacity(200f, fontScale = 1.5f))
     }
 
     @Test

@@ -94,12 +94,12 @@ object OverviewRowsCodec {
 /** 版面尺寸計算（dp），抽出來方便單元測試。 */
 object OverviewLayout {
     const val PADDING_DP = 10
-    const val HEADER_HEIGHT_DP = 38
+    const val HEADER_HEIGHT_DP = 46
     const val RING_DP = 64
     const val ROW_GAP_DP = 6
 
-    /** 三行字的高度（13＋20＋12sp 含行距）；會隨系統字體放大。 */
-    private const val TEXT_BLOCK_DP = 54
+    /** 三行字的高度（13＋20＋12sp 含行距）；實機量約 66dp，會隨系統字體放大。 */
+    private const val TEXT_BLOCK_DP = 66
 
     /** 「更新中…」最多顯示這麼久；網路斷掉等情況下不會永遠卡著。 */
     private const val REFRESHING_TIMEOUT_MILLIS = 3 * 60 * 1000L

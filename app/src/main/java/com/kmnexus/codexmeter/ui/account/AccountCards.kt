@@ -156,7 +156,7 @@ internal fun AccountCard(
                         text = collapsedQuotaLine(account) ?: stringResource(account.statusLabelResId),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
@@ -165,7 +165,7 @@ internal fun AccountCard(
                         } ?: stringResource(account.refreshSummaryResId),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
@@ -669,14 +669,12 @@ private fun formattedInstant(instant: Instant): String {
     val locale = LocalConfiguration.current.locales[0]
     return remember(instant, locale) {
         val zone = ZoneId.systemDefault()
-        // 今天的只顯示時間（「下午 11:22」），跨日才帶日期，避免卡片上一行塞不下而換行。
-        val isToday = instant.atZone(zone).toLocalDate() == java.time.LocalDate.now(zone)
-        val formatter = if (isToday) {
-            DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
-        } else {
-            DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT)
-        }
-        formatter.withLocale(locale).withZone(zone).format(instant)
+        // 今天只顯示時間（下午 9:42），其他天「11/24 下午 9:42」；年份省略，卡片上才放得下。
+        val skeleton = if (instant.atZone(zone).toLocalDate() == java.time.LocalDate.now(zone)) "jm" else "Mdjm"
+        DateTimeFormatter
+            .ofPattern(android.text.format.DateFormat.getBestDateTimePattern(locale, skeleton), locale)
+            .withZone(zone)
+            .format(instant)
     }
 }
 

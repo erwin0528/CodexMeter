@@ -138,7 +138,8 @@ private fun OverviewContent(
 
 @Composable
 private fun Header(context: Context, rows: List<OverviewRow>, hiddenCount: Int, now: Instant, refreshing: Boolean) {
-    Column(modifier = GlanceModifier.fillMaxWidth().height(OverviewLayout.HEADER_HEIGHT_DP.dp)) {
+    // 不寫死高度：大字體時推薦那行會被裁掉。
+    Column(modifier = GlanceModifier.fillMaxWidth()) {
         TitleRow(context, rows, hiddenCount, now, refreshing)
         // 第二行：「現在最該用哪個」，給想把額度用完的人一眼決定。
         val pick = UseItAdvisor.recommend(rows)
