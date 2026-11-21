@@ -78,6 +78,8 @@ data class AccountQuotaSummaryUi(
     /** Non-null for DeepSeek-style granted/topped-up breakdown (native currency). */
     val grantedText: String? = null,
     val toppedUpText: String? = null,
+    /** 這個額度下次重置的時間；餘額型或還沒開始計時時為 null。 */
+    val resetAt: java.time.Instant? = null,
 )
 
 /** A per-window quota alert toggle (label + current on/off state). */
@@ -613,6 +615,7 @@ class AccountViewModel(
                 originalValueText = formatProviderBalance(converted.originalBalanceAmount, converted.originalBalanceCurrency),
                 grantedText = formatProviderBalance(converted.grantedBalance, nativeCurrency),
                 toppedUpText = formatProviderBalance(converted.toppedUpBalance, nativeCurrency),
+                resetAt = converted.resetAt,
             )
         }
 

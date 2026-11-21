@@ -423,6 +423,18 @@ private fun QuotaSummaryTile(
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
+        // 重置時間：展開帳號卡時一眼看到這個額度什麼時候回滿。
+        // 有百分比卻沒有重置時間＝這個週期還沒開始用（例如 Claude 閒置時），明講比空白好。
+        val resetText = summary.resetAt?.let {
+            stringResource(R.string.widget_reset_at_compact_format, formattedInstant(it))
+        } ?: summary.percent?.let { stringResource(R.string.account_quota_reset_not_started) }
+        resetText?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         // Original native balance (shown when conversion occurred)
         summary.originalValueText?.let { original ->
             Text(

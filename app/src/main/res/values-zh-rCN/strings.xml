@@ -416,4 +416,5 @@
     <string name="overview_pace_over">用太快</string>
     <string name="overview_pace_depleted">用完了</string>
     <string name="overview_widget_refreshing">刷新中…</string>
+    <string name="account_quota_reset_not_started">尚未开始计时</string>
 </resources>
