@@ -143,6 +143,12 @@ jobs:
           key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle.kts', '**/libs.versions.toml', '**/gradle-wrapper.properties') }}
           restore-keys: gradle-${{ runner.os }}-
 
+      # ── 8.5 發版前先過靜態檢查與單元測試，沒過就不發 ─────────────────────
+      - name: Detekt and unit tests
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx3072m -Dfile.encoding=UTF-8"
+        run: ./gradlew detekt :app:testDebugUnitTest --no-daemon --stacktrace
+
       # ── 9. 解码 keystore ──────────────────────────────────────────────────
       # 注：versionName/versionCode 由 app/build.gradle.kts 直接从 git tag 派生
       # （fetch-depth: 0 已拉全 tag），无需再在 CI 里 sed 同步。
