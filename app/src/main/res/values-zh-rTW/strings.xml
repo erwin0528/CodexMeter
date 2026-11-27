@@ -417,4 +417,10 @@
     <string name="overview_pace_depleted">用完了</string>
     <string name="overview_widget_refreshing">更新中…</string>
     <string name="account_quota_reset_not_started">尚未開始計時</string>
+    <string name="home_viewing_account">正在查看</string>
+    <string name="home_account_selector">選擇帳號</string>
+    <string name="home_account_selector_placeholder">尚未連結帳號</string>
+    <string name="account_default_section">預設帳號</string>
+    <string name="account_default_card_description">首頁顯示這個帳號；新增小工具時預先選它。</string>
+    <string name="account_badge_default">預設</string>
 </resources>

@@ -16,8 +16,6 @@ import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import com.kmnexus.codexmeter.CodexMeterApp
 import com.kmnexus.codexmeter.domain.model.AccountStatus
-import com.kmnexus.codexmeter.domain.quota.QuotaWindowAvailability
-import com.kmnexus.codexmeter.ui.quota.quotaWindowLabelRes
 import com.kmnexus.codexmeter.ui.theme.CodexMeterTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -89,19 +87,12 @@ class CodexMeterWidgetConfigurationActivity : ComponentActivity() {
             val selectedAccount = selectableAccounts.firstOrNull {
                 configuration.providerId == it.providerId.value &&
                     configuration.localAccountId == it.localAccountId.value
-            } ?: selectableAccounts.firstOrNull { it.localAccountId == accounts.currentAccountId }
+            } ?: selectableAccounts.firstOrNull { it.localAccountId == accounts.defaultAccountId }
                 ?: selectableAccounts.firstOrNull()
 
             val windowOptionsByAccount = selectableAccounts.associate { account ->
                 val options = accounts.latestQuotaSnapshots[account.localAccountId]?.windows
-                    ?.filter { it.availability == QuotaWindowAvailability.Available }
-                    ?.map {
-                        WidgetWindowOption(
-                            it.windowId.value,
-                            quotaWindowLabelRes(it.windowId.value, it.limitWindowSeconds),
-                        )
-                    }
-                    ?.distinctBy { it.windowId }
+                    ?.let(::buildWidgetWindowOptions)
                     .orEmpty()
                 account.localAccountId.value to options
             }
@@ -120,7 +111,7 @@ class CodexMeterWidgetConfigurationActivity : ComponentActivity() {
                 selectedLocalAccountId = selectedAccount?.localAccountId?.value,
                 selectedWindowIds = initialSelection,
                 defaultWindowId = defaultWindowId,
-                currentAccountId = accounts.currentAccountId?.value,
+                currentAccountId = accounts.defaultAccountId?.value,
                 windowOptionsByAccount = windowOptionsByAccount,
             )
         }

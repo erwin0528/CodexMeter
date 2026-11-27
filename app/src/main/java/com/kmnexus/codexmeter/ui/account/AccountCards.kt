@@ -67,7 +67,7 @@ import java.time.format.FormatStyle
 import java.util.Locale
 
 @Composable
-internal fun CurrentAccountCard(account: AccountItemUi) {
+internal fun DefaultAccountCard(account: AccountItemUi) {
     AccountSurfaceCard {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -87,7 +87,7 @@ internal fun CurrentAccountCard(account: AccountItemUi) {
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = stringResource(R.string.account_current_card_description),
+                    text = stringResource(R.string.account_default_card_description),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -121,7 +121,6 @@ internal fun EmptyAccountsCard(onAddAccountClick: () -> Unit) {
 @Composable
 internal fun AccountCard(
     account: AccountItemUi,
-    onSetCurrentClick: (LocalAccountId) -> Unit,
     onRenameClick: (LocalAccountId) -> Unit,
     onReloginClick: (LocalAccountId) -> Unit,
     onQuotaAlertToggle: (LocalAccountId, QuotaWindowId, Boolean) -> Unit,
@@ -185,7 +184,6 @@ internal fun AccountCard(
             AccountDetailsDrawer(
                 account = account,
                 animatorsEnabled = animatorsEnabled,
-                onSetCurrentClick = onSetCurrentClick,
                 onRenameClick = onRenameClick,
                 onReloginClick = onReloginClick,
                 onQuotaAlertToggle = onQuotaAlertToggle,
@@ -230,7 +228,6 @@ private fun AccountExpandIconButton(
 private fun AccountDetailsDrawer(
     account: AccountItemUi,
     animatorsEnabled: Boolean,
-    onSetCurrentClick: (LocalAccountId) -> Unit,
     onRenameClick: (LocalAccountId) -> Unit,
     onReloginClick: (LocalAccountId) -> Unit,
     onQuotaAlertToggle: (LocalAccountId, QuotaWindowId, Boolean) -> Unit,
@@ -284,7 +281,6 @@ private fun AccountDetailsDrawer(
             )
             AccountActions(
                 account = account,
-                onSetCurrentClick = onSetCurrentClick,
                 onRenameClick = onRenameClick,
                 onReloginClick = onReloginClick,
                 onDeleteClick = onDeleteClick,
@@ -573,7 +569,6 @@ private fun QuotaAlertSwitchLine(
 @Composable
 private fun AccountActions(
     account: AccountItemUi,
-    onSetCurrentClick: (LocalAccountId) -> Unit,
     onRenameClick: (LocalAccountId) -> Unit,
     onReloginClick: (LocalAccountId) -> Unit,
     onDeleteClick: (LocalAccountId) -> Unit,
@@ -582,23 +577,12 @@ private fun AccountActions(
     Column(verticalArrangement = Arrangement.spacedBy(CodexMeterSpacing.sm)) {
         Row(horizontalArrangement = Arrangement.spacedBy(CodexMeterSpacing.sm)) {
             OutlinedButton(
-                onClick = { onSetCurrentClick(account.id) },
-                modifier = Modifier.weight(1f),
-                enabled = !account.isCurrent,
-                shape = CodexMeterShapes.md,
-                border = actionButtonBorder,
-            ) {
-                Text(text = stringResource(R.string.account_set_current))
-            }
-            OutlinedButton(
                 onClick = { onRenameClick(account.id) },
                 modifier = Modifier.weight(1f),
                 shape = CodexMeterShapes.md,
             ) {
                 Text(text = stringResource(R.string.account_rename))
             }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(CodexMeterSpacing.sm)) {
             OutlinedButton(
                 onClick = { onReloginClick(account.id) },
                 modifier = Modifier.weight(1f),
@@ -606,6 +590,8 @@ private fun AccountActions(
             ) {
                 Text(text = stringResource(R.string.account_relogin))
             }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(CodexMeterSpacing.sm)) {
             OutlinedButton(
                 onClick = { onDeleteClick(account.id) },
                 modifier = Modifier.weight(1f),

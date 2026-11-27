@@ -112,32 +112,24 @@ data class SettingsAlertsUi(
     val balanceWarning: Double = DEFAULT_BALANCE_WARNING_THRESHOLD,
 )
 
-sealed interface SettingsNotificationAccountSelection {
-    data object FollowCurrent : SettingsNotificationAccountSelection
-
-    data class Account(
-        val providerId: ProviderId,
-        val localAccountId: LocalAccountId,
-        val displayName: String,
-    ) : SettingsNotificationAccountSelection
-}
+/** One lockable notification target. No "follow" option remains: the account is fixed. */
+data class SettingsNotificationAccountSelection(
+    val providerId: ProviderId,
+    val localAccountId: LocalAccountId,
+    val displayName: String,
+)
 
 data class SettingsNotificationAccountChoice(
     val selection: SettingsNotificationAccountSelection,
 ) {
-    val stableId: String =
-        when (selection) {
-            SettingsNotificationAccountSelection.FollowCurrent -> "follow_current"
-            is SettingsNotificationAccountSelection.Account -> selection.localAccountId.value
-        }
+    val stableId: String = selection.localAccountId.value
 }
 
 data class SettingsPersistentNotificationUi(
     val enabled: Boolean = true,
-    val accountSelection: SettingsNotificationAccountSelection = SettingsNotificationAccountSelection.FollowCurrent,
-    val accountChoices: List<SettingsNotificationAccountChoice> = listOf(
-        SettingsNotificationAccountChoice(SettingsNotificationAccountSelection.FollowCurrent),
-    ),
+    /** Null until the migration locks a concrete account or the device has no accounts. */
+    val accountSelection: SettingsNotificationAccountSelection? = null,
+    val accountChoices: List<SettingsNotificationAccountChoice> = emptyList(),
     val selectedWindowId: QuotaWindowId = DEFAULT_NOTIFICATION_WINDOW_ID,
     val windowChoices: List<SettingsNotificationWindowChoice> = emptyList(),
 )
@@ -374,14 +366,32 @@ class SettingsViewModel(
         ),
     )
     private val notificationPreferenceWriteMutex = Mutex()
-    private var notificationPreferencesEditedLocally = false
+    /**
+     * Guards local edits only while a notification-preferences write is in flight or completed
+     * during a store read: a late-arriving read must not overwrite the edit the user just made,
+     * but once writes settle the next loadSettings applies the persisted values — including
+     * rebinding done elsewhere, such as the account-deletion notification fallback.
+     */
+    private var notificationPreferenceWritesInFlight = 0
+    private var notificationPreferenceWritesCommitted = 0
     private var latestNotificationPreferences = NotificationPreferences()
+
+    /**
+     * Same late-read protection for the other persisted settings: a loadSettings read started
+     * before a local write must not apply its stale result afterwards. Bumped by every writer of
+     * the corresponding store (user edits and internal writes alike); the read captures the
+     * counter before it starts and applies only if it still matches.
+     */
+    private var retentionStoreWriteVersion = 0
+    private var currencyStoreWriteVersion = 0
+    private var themeStoreWriteVersion = 0
+    private var updatePrefsStoreWriteVersion = 0
 
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
     fun setStatusNotificationEnabled(enabled: Boolean) {
         val nextAlerts = _uiState.value.alerts.copy(statusNotificationEnabled = enabled)
-        notificationPreferencesEditedLocally = true
+        notificationPreferenceWritesInFlight += 1
         update { state ->
             state.copy(
                 alerts = nextAlerts,
@@ -389,52 +399,50 @@ class SettingsViewModel(
             )
         }
         viewModelScope.launch {
-            persistNotificationPreferences { it.copy(statusNotificationEnabled = enabled) }
+            persistNotificationPreferences(releasesLocalEdit = true) { it.copy(statusNotificationEnabled = enabled) }
         }
     }
 
     fun setAccountErrorsEnabled(enabled: Boolean) {
         val nextAlerts = _uiState.value.alerts.copy(accountErrorsEnabled = enabled)
-        notificationPreferencesEditedLocally = true
+        notificationPreferenceWritesInFlight += 1
         update { state ->
             state.copy(alerts = nextAlerts)
         }
         viewModelScope.launch {
-            persistNotificationPreferences { it.copy(accountErrorsEnabled = enabled) }
+            persistNotificationPreferences(releasesLocalEdit = true) { it.copy(accountErrorsEnabled = enabled) }
         }
     }
 
     fun updateAlertThresholds(caution: Int, warning: Int) {
         val nextAlerts = _uiState.value.alerts.copy(thresholds = normalizedThresholds(caution, warning))
-        notificationPreferencesEditedLocally = true
+        notificationPreferenceWritesInFlight += 1
         update { state ->
             state.copy(alerts = nextAlerts)
         }
         viewModelScope.launch {
-            persistNotificationPreferences {
-                it.copy(
-                    cautionThreshold = nextAlerts.thresholds.caution,
-                    warningThreshold = nextAlerts.thresholds.warning,
-                    limitThreshold = nextAlerts.thresholds.limit,
-                )
-            }
+            persistNotificationPreferences(releasesLocalEdit = true) {
+                    it.copy(
+                        cautionThreshold = nextAlerts.thresholds.caution,
+                        warningThreshold = nextAlerts.thresholds.warning,
+                        limitThreshold = nextAlerts.thresholds.limit,
+                    )
+                }
         }
     }
 
     fun updateBalanceThresholds(caution: Double, warning: Double) {
         val (safeCaution, safeWarning) = normalizedBalanceThresholds(caution, warning)
         val nextAlerts = _uiState.value.alerts.copy(balanceCaution = safeCaution, balanceWarning = safeWarning)
-        notificationPreferencesEditedLocally = true
+        notificationPreferenceWritesInFlight += 1
         update { state -> state.copy(alerts = nextAlerts) }
         viewModelScope.launch {
-            persistNotificationPreferences {
-                it.copy(balanceCautionThreshold = safeCaution, balanceWarningThreshold = safeWarning)
-            }
+            persistNotificationPreferences(releasesLocalEdit = true) { it.copy(balanceCautionThreshold = safeCaution, balanceWarningThreshold = safeWarning) }
         }
     }
 
     fun updatePersistentNotificationAccount(selection: SettingsNotificationAccountSelection) {
-        notificationPreferencesEditedLocally = true
+        notificationPreferenceWritesInFlight += 1
         update { state ->
             state.copy(
                 persistentNotification = state.persistentNotification.copy(accountSelection = selection),
@@ -442,15 +450,13 @@ class SettingsViewModel(
             )
         }
         viewModelScope.launch {
-            persistNotificationPreferences {
-                it.copy(persistentNotificationAccount = selection.toNotificationAccountSelection())
-            }
+            persistNotificationPreferences(releasesLocalEdit = true) { it.copy(persistentNotificationAccount = selection.toNotificationAccountSelection()) }
             loadAndApplyWindowChoices(selection)
         }
     }
 
     fun updatePersistentNotificationWindow(windowId: QuotaWindowId) {
-        notificationPreferencesEditedLocally = true
+        notificationPreferenceWritesInFlight += 1
         update { state ->
             state.copy(
                 persistentNotification = state.persistentNotification.copy(selectedWindowId = windowId),
@@ -458,21 +464,28 @@ class SettingsViewModel(
             )
         }
         viewModelScope.launch {
-            persistNotificationPreferences { it.copy(persistentNotificationWindowId = windowId) }
+            persistNotificationPreferences(releasesLocalEdit = true) { it.copy(persistentNotificationWindowId = windowId) }
         }
     }
 
-    private suspend fun loadAndApplyWindowChoices(selection: SettingsNotificationAccountSelection) {
-        val (providerId, localAccountId) = when (selection) {
-            SettingsNotificationAccountSelection.FollowCurrent -> null to null
-            is SettingsNotificationAccountSelection.Account ->
-                selection.providerId to selection.localAccountId
-        }
+    /**
+     * Loads the quota windows valid for [selection]. The lookup may return after the user (or an
+     * external rebind) already moved the binding elsewhere — a late result must not apply the old
+     * account's windows nor persist them, so both the apply and the auto-persist re-check the
+     * binding and simply drop stale results.
+     */
+    private suspend fun loadAndApplyWindowChoices(selection: SettingsNotificationAccountSelection?) {
+        val providerId = selection?.providerId
+        val localAccountId = selection?.localAccountId
         val choices = notificationWindowChoicesLoader.windowChoices(providerId, localAccountId)
             .map { it.toSettingsNotificationWindowChoice() }
+        if (!_uiState.value.persistentNotification.accountSelection.sameAccountAs(selection)) return
         var needsPersist = false
         var resolvedWindowId: QuotaWindowId? = null
         update { state ->
+            if (!state.persistentNotification.accountSelection.sameAccountAs(selection)) {
+                return@update state
+            }
             val currentId = state.persistentNotification.selectedWindowId
             val resolvedId = if (choices.isNotEmpty() && choices.none { it.windowId == currentId }) {
                 choices.first().windowId
@@ -492,7 +505,22 @@ class SettingsViewModel(
         }
         val finalWindowId = resolvedWindowId
         if (needsPersist && finalWindowId != null) {
-            persistNotificationPreferences { it.copy(persistentNotificationWindowId = finalWindowId) }
+            persistNotificationPreferences { stored ->
+                // Re-check the binding inside the write transform: it may have changed (again)
+                // between the UI check and this persist.
+                val bound = stored.persistentNotificationAccount
+                val stillBound = when {
+                    selection == null -> bound == null
+                    bound == null -> false
+                    else -> bound.providerId == selection.providerId &&
+                        bound.localAccountId == selection.localAccountId
+                }
+                if (stillBound) {
+                    stored.copy(persistentNotificationWindowId = finalWindowId)
+                } else {
+                    stored
+                }
+            }
         }
     }
 
@@ -503,7 +531,7 @@ class SettingsViewModel(
     }
 
     fun updateRefreshInterval(interval: SettingsRefreshInterval) {
-        notificationPreferencesEditedLocally = true
+        notificationPreferenceWritesInFlight += 1
         update { state ->
             state.copy(
                 refresh = state.refresh.copy(interval = interval),
@@ -512,11 +540,12 @@ class SettingsViewModel(
         }
         backgroundRefreshScheduler.applyIntervalMinutes(interval.minutes)
         viewModelScope.launch {
-            persistNotificationPreferences { it.copy(backgroundRefreshIntervalMinutes = interval.minutes) }
+            persistNotificationPreferences(releasesLocalEdit = true) { it.copy(backgroundRefreshIntervalMinutes = interval.minutes) }
         }
     }
 
     fun updateCurrencyTarget(currency: String) {
+        currencyStoreWriteVersion += 1
         update { it.copy(currency = it.currency.copy(targetCurrency = currency), pendingChoiceDialog = null) }
         viewModelScope.launch {
             currencyPreferenceStore.updateCurrencyPreferences(CurrencyPreferences(currency))
@@ -524,6 +553,7 @@ class SettingsViewModel(
     }
 
     fun updateThemeMode(mode: ThemeMode) {
+        themeStoreWriteVersion += 1
         update { it.copy(appearance = it.appearance.copy(themeMode = mode)) }
         viewModelScope.launch {
             appearancePreferenceStore.setThemeMode(mode)
@@ -532,15 +562,18 @@ class SettingsViewModel(
 
     fun loadSettings() {
         viewModelScope.launch {
+            val retentionVersionBeforeRead = retentionStoreWriteVersion
             runCatching {
                 retentionPreferenceStore.retentionPreference().toSettingsRetentionOption()
             }.onSuccess { retention ->
-                update { state ->
-                    state.copy(
-                        data = state.data.copy(
-                            retention = retention,
-                        ),
-                    )
+                if (retentionStoreWriteVersion == retentionVersionBeforeRead) {
+                    update { state ->
+                        state.copy(
+                            data = state.data.copy(
+                                retention = retention,
+                            ),
+                        )
+                    }
                 }
             }
             runCatching {
@@ -551,21 +584,18 @@ class SettingsViewModel(
                         .filterNot { it.status == AccountStatus.Deleted }
                         .map { account ->
                             SettingsNotificationAccountChoice(
-                                SettingsNotificationAccountSelection.Account(
+                                SettingsNotificationAccountSelection(
                                     providerId = account.providerId,
                                     localAccountId = account.localAccountId,
                                     displayName = account.displayName,
                                 ),
                             )
                         }
-                    val allChoices = listOf(
-                        SettingsNotificationAccountChoice(SettingsNotificationAccountSelection.FollowCurrent),
-                    ) + accountChoices
                     state.copy(
                         persistentNotification = state.persistentNotification.copy(
-                            accountChoices = allChoices,
+                            accountChoices = accountChoices,
                             accountSelection = state.persistentNotification.accountSelection
-                                .withDisplayNameFrom(allChoices),
+                                .withDisplayNameFrom(accountChoices),
                         ),
                     )
                 }
@@ -579,27 +609,36 @@ class SettingsViewModel(
                     )
                 }
             }
+            val currencyVersionBeforeRead = currencyStoreWriteVersion
             runCatching {
                 currencyPreferenceStore.currencyPreferences()
             }.onSuccess { currencyPreferences ->
-                update { state ->
-                    state.copy(
-                        currency = SettingsCurrencyUi(targetCurrency = currencyPreferences.targetCurrency),
-                    )
+                if (currencyStoreWriteVersion == currencyVersionBeforeRead) {
+                    update { state ->
+                        state.copy(
+                            currency = SettingsCurrencyUi(targetCurrency = currencyPreferences.targetCurrency),
+                        )
+                    }
                 }
             }
+            val themeVersionBeforeRead = themeStoreWriteVersion
             runCatching {
                 appearancePreferenceStore.themeMode.first()
             }.onSuccess { themeMode ->
-                update { state ->
-                    state.copy(appearance = state.appearance.copy(themeMode = themeMode))
+                if (themeStoreWriteVersion == themeVersionBeforeRead) {
+                    update { state ->
+                        state.copy(appearance = state.appearance.copy(themeMode = themeMode))
+                    }
                 }
             }
+            val writesCommittedBeforeRead = notificationPreferenceWritesCommitted
             runCatching {
                 notificationPreferenceStore.notificationPreferences()
             }.onSuccess { preferences ->
-                latestNotificationPreferences = preferences
-                if (!notificationPreferencesEditedLocally) {
+                if (notificationPreferenceWritesInFlight == 0 &&
+                    notificationPreferenceWritesCommitted == writesCommittedBeforeRead
+                ) {
+                    latestNotificationPreferences = preferences
                     update { state ->
                         val resolvedAccountSelection = preferences.persistentNotificationAccount
                             .toSettingsNotificationAccountSelection(
@@ -624,29 +663,36 @@ class SettingsViewModel(
                     loadAndApplyWindowChoices(resolvedAccountSelection)
                 }
             }
+            val updatePrefsVersionBeforeRead = updatePrefsStoreWriteVersion
             runCatching {
                 updatePreferenceStore.preferences()
             }.onSuccess { prefs ->
-                val available = prefs.availableUpdate?.takeIf {
-                    AppVersionComparator.isRemoteVersionNewer(currentVersionName, it.versionName)
-                }
-                if (available == null && prefs.availableUpdate != null) {
-                    runCatching { updatePreferenceStore.setAvailableUpdate(null) }
-                }
-                update { state ->
-                    state.copy(
-                        update = state.update.copy(
-                            autoCheckEnabled = prefs.autoCheckEnabled,
-                            notifyOnUpdateEnabled = prefs.notifyOnUpdateEnabled,
-                            availableUpdate = available,
-                        ),
-                    )
+                if (updatePrefsStoreWriteVersion == updatePrefsVersionBeforeRead) {
+                    val available = prefs.availableUpdate?.takeIf {
+                        AppVersionComparator.isRemoteVersionNewer(currentVersionName, it.versionName)
+                    }
+                    if (available == null && prefs.availableUpdate != null) {
+                        runCatching {
+                            updatePrefsStoreWriteVersion += 1
+                            updatePreferenceStore.setAvailableUpdate(null)
+                        }
+                    }
+                    update { state ->
+                        state.copy(
+                            update = state.update.copy(
+                                autoCheckEnabled = prefs.autoCheckEnabled,
+                                notifyOnUpdateEnabled = prefs.notifyOnUpdateEnabled,
+                                availableUpdate = available,
+                            ),
+                        )
+                    }
                 }
             }
         }
     }
 
     fun updateRetention(retention: SettingsRetentionOption) {
+        retentionStoreWriteVersion += 1
         viewModelScope.launch {
             runCatching {
                 retentionPreferenceStore.updateRetentionPreference(retention.toRetentionPreference())
@@ -761,9 +807,15 @@ class SettingsViewModel(
             update { state -> state.copy(update = result.toSettingsUpdateUi(state.update)) }
             when (result) {
                 is AppUpdateCheckResult.UpdateAvailable ->
-                    runCatching { updatePreferenceStore.setAvailableUpdate(result.update) }
+                    runCatching {
+                        updatePrefsStoreWriteVersion += 1
+                        updatePreferenceStore.setAvailableUpdate(result.update)
+                    }
                 AppUpdateCheckResult.UpToDate ->
-                    runCatching { updatePreferenceStore.setAvailableUpdate(null) }
+                    runCatching {
+                        updatePrefsStoreWriteVersion += 1
+                        updatePreferenceStore.setAvailableUpdate(null)
+                    }
                 else -> Unit
             }
         }
@@ -776,6 +828,7 @@ class SettingsViewModel(
     }
 
     fun setAutoCheckUpdates(enabled: Boolean) {
+        updatePrefsStoreWriteVersion += 1
         update { state -> state.copy(update = state.update.copy(autoCheckEnabled = enabled)) }
         updateCheckScheduler.setAutoCheckEnabled(enabled)
         viewModelScope.launch {
@@ -784,6 +837,7 @@ class SettingsViewModel(
     }
 
     fun setNotifyOnUpdate(enabled: Boolean) {
+        updatePrefsStoreWriteVersion += 1
         update { state -> state.copy(update = state.update.copy(notifyOnUpdateEnabled = enabled)) }
         viewModelScope.launch {
             runCatching { updatePreferenceStore.setNotifyOnUpdateEnabled(enabled) }
@@ -916,7 +970,7 @@ class SettingsViewModel(
                 )
             }
 
-            appendLine("## CURRENT ACCOUNT")
+            appendLine("## DEFAULT ACCOUNT")
             appendLine("providerId=${input.providerId}")
             appendLine("accountDiagnosticId=${input.accountDiagnosticId}")
             appendLine("currentAccountSelectionStatus=${input.currentAccountSelectionStatus}")
@@ -1012,15 +1066,28 @@ class SettingsViewModel(
         return safeCaution to safeWarning
     }
 
+    /**
+     * [releasesLocalEdit] must be true exactly for writes that incremented
+     * [notificationPreferenceWritesInFlight] at the call site — internal follow-up writes (like
+     * the window re-resolution persist) must not consume a user edit's guard slot.
+     */
     private suspend fun persistNotificationPreferences(
+        releasesLocalEdit: Boolean = false,
         transform: (NotificationPreferences) -> NotificationPreferences,
     ) {
         notificationPreferenceWriteMutex.withLock {
-            val nextPreferences = transform(latestNotificationPreferences)
-            runCatching {
-                notificationPreferenceStore.updateNotificationPreferences(nextPreferences)
-            }.onSuccess {
-                latestNotificationPreferences = nextPreferences
+            try {
+                val nextPreferences = transform(latestNotificationPreferences)
+                runCatching {
+                    notificationPreferenceStore.updateNotificationPreferences(nextPreferences)
+                }.onSuccess {
+                    latestNotificationPreferences = nextPreferences
+                    notificationPreferenceWritesCommitted += 1
+                }
+            } finally {
+                if (releasesLocalEdit && notificationPreferenceWritesInFlight > 0) {
+                    notificationPreferenceWritesInFlight -= 1
+                }
             }
         }
     }
@@ -1090,35 +1157,43 @@ private fun NotificationWindowChoice.toSettingsNotificationWindowChoice(): Setti
         labelResId = quotaWindowLabelRes(windowId.value, limitWindowSeconds),
     )
 
-private fun SettingsNotificationAccountSelection.toNotificationAccountSelection(): NotificationAccountSelection? =
-    when (this) {
-        SettingsNotificationAccountSelection.FollowCurrent -> null
-        is SettingsNotificationAccountSelection.Account -> NotificationAccountSelection(
-            providerId = providerId,
-            localAccountId = localAccountId,
+private fun SettingsNotificationAccountSelection?.sameAccountAs(
+    other: SettingsNotificationAccountSelection?,
+): Boolean = when {
+    this == null -> other == null
+    other == null -> false
+    else -> providerId == other.providerId && localAccountId == other.localAccountId
+}
+
+private fun SettingsNotificationAccountSelection?.toNotificationAccountSelection(): NotificationAccountSelection? =
+    this?.let {
+        NotificationAccountSelection(
+            providerId = it.providerId,
+            localAccountId = it.localAccountId,
         )
     }
 
 private fun NotificationAccountSelection?.toSettingsNotificationAccountSelection(
     choices: List<SettingsNotificationAccountChoice>,
-): SettingsNotificationAccountSelection {
-    this ?: return SettingsNotificationAccountSelection.FollowCurrent
+): SettingsNotificationAccountSelection? {
+    this ?: return null
     return choices.map { it.selection }
-        .filterIsInstance<SettingsNotificationAccountSelection.Account>()
         .firstOrNull { it.providerId == providerId && it.localAccountId == localAccountId }
-        ?: SettingsNotificationAccountSelection.FollowCurrent
+        ?: SettingsNotificationAccountSelection(
+            providerId = providerId,
+            localAccountId = localAccountId,
+            displayName = localAccountId.value,
+        )
 }
 
-private fun SettingsNotificationAccountSelection.withDisplayNameFrom(
+private fun SettingsNotificationAccountSelection?.withDisplayNameFrom(
     choices: List<SettingsNotificationAccountChoice>,
-): SettingsNotificationAccountSelection =
-    when (this) {
-        SettingsNotificationAccountSelection.FollowCurrent -> this
-        is SettingsNotificationAccountSelection.Account ->
-            choices.map { it.selection }
-                .filterIsInstance<SettingsNotificationAccountSelection.Account>()
-                .firstOrNull { it.providerId == providerId && it.localAccountId == localAccountId }
-                ?: SettingsNotificationAccountSelection.FollowCurrent
+): SettingsNotificationAccountSelection? =
+    this?.let { selected ->
+        choices.map { it.selection }
+            .firstOrNull {
+                it.providerId == selected.providerId && it.localAccountId == selected.localAccountId
+            } ?: selected
     }
 
 private fun NotificationPreferences.toSettingsAlertsUi(): SettingsAlertsUi =
