@@ -64,7 +64,6 @@
     <string name="home_state_error_lkg_description">正在顯示最近一次成功額度和安全錯誤摘要。</string>
     <string name="home_state_no_data_title">尚無額度資料</string>
     <string name="home_state_no_data_description">連線帳號後重新整理，以載入官方用量資料。</string>
-    <string name="home_current_account">目前帳號</string>
     <string name="home_account_plan_label">方案</string>
     <string name="home_account_plan_unavailable">無法取得</string>
     <string name="home_account_credits_label">Credits 餘量</string>
@@ -134,12 +133,9 @@
     <string name="add_account_device_code_cancelled">登入已取消。</string>
     <string name="add_account_device_code_failed">Codex 登入失敗，請重新產生授權碼 後重試。</string>
     <string name="add_account_device_code_in_progress">處理中…</string>
-    <string name="account_current_section">目前帳號</string>
-    <string name="account_current_card_description">這個帳號會決定首頁和新增的小工具的預設狀態。</string>
     <string name="account_saved_section">已儲存帳號</string>
     <string name="account_no_accounts_title">尚無帳號</string>
     <string name="account_no_accounts_description">新增帳號後，即可在 App、小工具和通知中檢視額度。</string>
-    <string name="account_badge_current">目前</string>
     <string name="account_badge_available">可用</string>
     <string name="account_badge_needs_reauth">需重新登入</string>
     <string name="account_badge_disabled">已停用</string>
@@ -187,7 +183,6 @@
     <string name="account_quota_alert_weekly">7 天額度警示</string>
     <string name="account_expand">展開</string>
     <string name="account_collapse">收起</string>
-    <string name="account_set_current">設為目前</string>
     <string name="account_rename">重新命名</string>
     <string name="account_relogin">重新登入</string>
     <string name="account_delete">刪除</string>
@@ -218,7 +213,6 @@
     <string name="settings_status_notification_description">在通知欄顯示低干擾的額度狀態。</string>
     <string name="settings_notification_account_title">通知帳號</string>
     <string name="settings_notification_account_description">選擇常駐通知顯示的帳號。</string>
-    <string name="settings_notification_account_follow_current">跟隨目前帳號</string>
     <string name="settings_notification_display_quota_title">通知顯示額度</string>
     <string name="settings_notification_display_quota_description">選擇常駐通知顯示的額度週期。</string>
     <string name="settings_value_placeholder">—</string>
