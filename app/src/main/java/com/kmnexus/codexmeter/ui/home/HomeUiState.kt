@@ -87,6 +87,8 @@ data class HomeQuotaCardUi(
     val originalBalanceCurrency: String? = null,
     val grantedBalance: String? = null,
     val toppedUpBalance: String? = null,
+    /** 視窗長度（秒），吉祥物算用量節奏要用；餘額型沒有。 */
+    val limitWindowSeconds: Int? = null,
 ) {
     /** Remaining percent for PercentQuotaCard rendering (100 - usedPercent). */
     val percent: Int? get() = usedPercent?.let { 100 - it.coerceIn(0, 100) }

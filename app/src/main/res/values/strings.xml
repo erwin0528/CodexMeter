@@ -417,4 +417,19 @@
     <string name="overview_pace_depleted">Used up</string>
     <string name="overview_widget_refreshing">Refreshing…</string>
     <string name="account_quota_reset_not_started">Timer not started yet</string>
+    <string name="home_mascot_name">Quota cat</string>
+    <string name="home_mascot_hungry">The bowl is still full and about to expire. Go use it!</string>
+    <string name="home_mascot_relaxed">Right on pace. Keep it up.</string>
+    <string name="home_mascot_stuffed">Eating too fast. Slow down a little.</string>
+    <string name="home_mascot_ate_all">All eaten up!</string>
+    <string name="home_mascot_ate_all_refill">All eaten up! Refills at %1$s</string>
+    <string name="home_mascot_locked">The bowl is covered. Sign in again.</string>
+    <string name="home_mascot_waiting">Waiting for quota data…</string>
+    <string name="home_trend_detail_title">Last 24 hours, by hour</string>
+    <string name="home_trend_detail_total">Used in 24 hours: %1$s</string>
+    <string name="home_trend_detail_peak">Busiest hour: %1$s (%2$s)</string>
+    <string name="home_trend_detail_empty">No usage in the last 24 hours.</string>
+    <string name="home_trend_detail_hour_range">%1$s – %2$s</string>
+    <string name="home_trend_detail_percent">%1$s%%</string>
+    <string name="home_trend_detail_calls">%1$d calls</string>
 </resources>

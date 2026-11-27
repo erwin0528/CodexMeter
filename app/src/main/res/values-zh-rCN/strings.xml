@@ -417,4 +417,19 @@
     <string name="overview_pace_depleted">用完了</string>
     <string name="overview_widget_refreshing">刷新中…</string>
     <string name="account_quota_reset_not_started">尚未开始计时</string>
+    <string name="home_mascot_name">额度猫</string>
+    <string name="home_mascot_hungry">碗还很满，快过期了喵</string>
+    <string name="home_mascot_relaxed">节奏刚好，继续保持</string>
+    <string name="home_mascot_stuffed">吃太快啦，慢一点</string>
+    <string name="home_mascot_ate_all">吃光光！</string>
+    <string name="home_mascot_ate_all_refill">吃光光！%1$s 补货</string>
+    <string name="home_mascot_locked">碗被盖住了，要重新登录</string>
+    <string name="home_mascot_waiting">等额度数据中…</string>
+    <string name="home_trend_detail_title">最近 24 小时，每小时用量</string>
+    <string name="home_trend_detail_total">24 小时共用掉 %1$s</string>
+    <string name="home_trend_detail_peak">用最多的时段：%1$s（%2$s）</string>
+    <string name="home_trend_detail_empty">最近 24 小时没有用量</string>
+    <string name="home_trend_detail_hour_range">%1$s – %2$s</string>
+    <string name="home_trend_detail_percent">%1$s%%</string>
+    <string name="home_trend_detail_calls">%1$d 次</string>
 </resources>

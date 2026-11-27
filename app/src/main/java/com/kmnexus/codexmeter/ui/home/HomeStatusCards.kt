@@ -5,6 +5,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,8 +46,8 @@ import com.kmnexus.codexmeter.ui.theme.CodexMeterShapes
 import com.kmnexus.codexmeter.ui.theme.CodexMeterSpacing
 
 @Composable
-internal fun HomeTrendCard(trend: HomeTrendUi) {
-    HomeSurfaceCard {
+internal fun HomeTrendCard(trend: HomeTrendUi, onClick: () -> Unit = {}) {
+    HomeSurfaceCard(onClick = onClick) {
         Column(verticalArrangement = Arrangement.spacedBy(CodexMeterSpacing.md)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -332,9 +333,11 @@ internal fun HomeActionCard(
 }
 
 @Composable
-private fun HomeSurfaceCard(content: @Composable () -> Unit) {
+private fun HomeSurfaceCard(onClick: (() -> Unit)? = null, content: @Composable () -> Unit) {
     QmLiquidGlassSurface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clip(CodexMeterShapes.xl).clickable(onClick = onClick) else Modifier),
         role = LiquidGlassSurfaceRole.Card,
         cornerRadius = 28.dp,
         contentPadding = PaddingValues(CodexMeterSpacing.lg),

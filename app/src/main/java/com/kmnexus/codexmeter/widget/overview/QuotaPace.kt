@@ -29,8 +29,14 @@ object QuotaPaceCalculator {
         if (row.status == WidgetQuotaStatus.AuthRequired || main.isBalance) return QuotaPace.Unknown
         val remaining = main.percent ?: return QuotaPace.Unknown
         if (remaining <= 0) return QuotaPace.Depleted
-        val timeLeftPercent = timeLeftFraction(main, now)?.times(100) ?: return QuotaPace.Unknown
-        val diff = remaining - timeLeftPercent
+        val timeLeft = timeLeftFraction(main, now) ?: return QuotaPace.Unknown
+        return pace(remaining, timeLeft)
+    }
+
+    /** 小工具跟首頁吉祥物共用同一套判斷，避免兩邊顏色和心情對不上。 */
+    fun pace(remainingPercent: Int, timeLeftFraction: Float): QuotaPace {
+        if (remainingPercent <= 0) return QuotaPace.Depleted
+        val diff = remainingPercent - timeLeftFraction * 100
         return when {
             diff > TOLERANCE_PERCENT -> QuotaPace.UnderUsing
             diff < -TOLERANCE_PERCENT -> QuotaPace.OverUsing

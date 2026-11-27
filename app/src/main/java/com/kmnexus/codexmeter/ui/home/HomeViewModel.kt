@@ -436,6 +436,7 @@ class HomeViewModel(
             originalBalanceCurrency = originalBalanceCurrency,
             grantedBalance = grantedBalance,
             toppedUpBalance = toppedUpBalance,
+            limitWindowSeconds = limitWindowSeconds,
         )
     }
 

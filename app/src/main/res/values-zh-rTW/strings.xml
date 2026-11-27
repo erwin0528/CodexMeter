@@ -417,4 +417,19 @@
     <string name="account_default_section">預設帳號</string>
     <string name="account_default_card_description">首頁顯示這個帳號；新增小工具時預先選它。</string>
     <string name="account_badge_default">預設</string>
+    <string name="home_mascot_name">額度貓</string>
+    <string name="home_mascot_hungry">碗還很滿，快過期了喵</string>
+    <string name="home_mascot_relaxed">節奏剛好，繼續保持</string>
+    <string name="home_mascot_stuffed">吃太快啦，慢一點</string>
+    <string name="home_mascot_ate_all">吃光光！</string>
+    <string name="home_mascot_ate_all_refill">吃光光！%1$s 補貨</string>
+    <string name="home_mascot_locked">碗被蓋住了，要重新登入</string>
+    <string name="home_mascot_waiting">等額度資料中…</string>
+    <string name="home_trend_detail_title">最近 24 小時，每小時用量</string>
+    <string name="home_trend_detail_total">24 小時共用掉 %1$s</string>
+    <string name="home_trend_detail_peak">用最多的時段：%1$s（%2$s）</string>
+    <string name="home_trend_detail_empty">最近 24 小時沒有用量</string>
+    <string name="home_trend_detail_hour_range">%1$s – %2$s</string>
+    <string name="home_trend_detail_percent">%1$s%%</string>
+    <string name="home_trend_detail_calls">%1$d 次</string>
 </resources>

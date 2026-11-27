@@ -34,6 +34,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -64,6 +65,7 @@ import com.kmnexus.codexmeter.ui.theme.CodexMeterShapes
 import com.kmnexus.codexmeter.ui.theme.CodexMeterSpacing
 import com.kmnexus.codexmeter.ui.theme.CodexMeterTheme
 import com.kmnexus.codexmeter.ui.theme.CodexMeterTypography
+import java.time.Instant
 
 @Composable
 fun HomeRoute(
@@ -168,11 +170,18 @@ fun HomeScreen(
             )
         } else {
             HomeHeroGlassLayer(uiState = uiState)
+            HomeMascotCard(
+                state = HomeMascotMoodResolver.resolve(uiState.contentStatus, uiState.quotaCards, Instant.now()),
+            )
             if (uiState.quotaCards.isNotEmpty()) {
                 HomeQuotaCards(
                     quotaCards = uiState.quotaCards,
                 )
-                HomeTrendCard(trend = uiState.trend)
+                var showTrendDetail by rememberSaveable { mutableStateOf(false) }
+                HomeTrendCard(trend = uiState.trend, onClick = { showTrendDetail = true })
+                if (showTrendDetail) {
+                    HomeTrendDetailSheet(trend = uiState.trend, onDismiss = { showTrendDetail = false })
+                }
             } else {
                 uiState.loading?.let { loading ->
                     HomeLoadingCard(loading = loading)
