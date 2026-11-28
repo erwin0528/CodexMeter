@@ -1,5 +1,9 @@
 package com.kmnexus.codexmeter.ui.home
 
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
+import com.kmnexus.codexmeter.domain.cat.CatMemory
+import com.kmnexus.codexmeter.domain.cat.CatSnack
 import kotlin.math.sin
 import kotlin.math.abs
 import com.kmnexus.codexmeter.domain.theme.CatEffectsLevel
@@ -147,6 +151,12 @@ internal fun HomeMascotCard(
     val level = LocalCatEffects.current.respecting(rememberCodexMeterAnimatorsEnabled())
     if (level == CatEffectsLevel.HIDDEN) return
     val interaction = rememberMascotInteraction(effectsAllowAnimation = level.interactionAnimations)
+    val memoryStore = LocalCatMemoryStore.current
+    val memory by memoryStore.memory.collectAsState(initial = CatMemory())
+    val scope = rememberCoroutineScope()
+    // 今天第一次看到貓：記一天（同一天開很多次只算一次）
+    LaunchedEffect(memoryStore) { memoryStore.update { it.visited(now.toLocalDate()) } }
+    CatIdleChatter(interaction, memoryStore, state.mood)
     val moodLine = if (state.mood == HomeMascotMood.AteAll && state.refillAt != null) {
         stringResource(R.string.home_mascot_ate_all_refill, formattedInstant(state.refillAt))
     } else {
@@ -171,6 +181,7 @@ internal fun HomeMascotCard(
                 level = level,
                 sleepy = sleepy,
                 line = line,
+                actions = rememberCatActions(interaction, memoryStore, memory, state, scope),
             )
             Text(
                 text = stringResource(R.string.home_mascot_hint),
@@ -211,7 +222,8 @@ private fun MascotLineRow(line: String, onClick: () -> Unit) {
  * 貓的舞台：碗固定在左邊，貓可以在整條舞台上散步（特效「全開」才會走）。
  * 點貓＝摸頭、雙擊貓＝加菜、長按貓＝呼嚕、點碗＝加菜並叫貓回來吃、點空地＝叫貓走過去、左右滑＝嚕下巴。
  */
-@Suppress("FunctionNaming") // Compose 元件慣例用大寫開頭
+// Compose 元件慣例用大寫開頭；舞台要同時拿狀態、互動、特效等級與記憶動作，拆開反而更難讀
+@Suppress("FunctionNaming", "LongParameterList")
 @Composable
 private fun CatStage(
     state: HomeMascotState,
@@ -219,13 +231,14 @@ private fun CatStage(
     level: CatEffectsLevel,
     sleepy: Boolean,
     line: String,
+    actions: CatActions,
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth().height(STAGE_HEIGHT)) {
         val unitDp = STAGE_HEIGHT / CANVAS_UNITS
         val maxX = (maxWidth / unitDp - CAT_FOOTPRINT_UNITS).coerceAtLeast(0f)
         val walker = rememberCatWalker(canWalk = level.walks && !sleepy, maxX = maxX)
         val feed = {
-            interaction.treat { count -> HomeMascotChatter.treatLine(count, state.remainingPercent) }
+            actions.feed()
             walker.goHome()
         }
         QuotaCat(
@@ -235,15 +248,17 @@ private fun CatStage(
             idleAnimations = level.idleAnimations,
             walkX = { walker.x },
             facingLeft = walker.facingLeft,
+            snack = actions.snack,
             modifier = Modifier
                 .fillMaxSize()
                 .semantics { contentDescription = line }
                 .catStageGestures(
                     interaction = interaction,
                     hitTest = { offsetPx -> stageTarget(offsetPx / (size.height / CANVAS_UNITS), walker.x) },
-                    onPet = { interaction.pet { count -> HomeMascotChatter.petLine(state.mood, count) } },
+                    onPet = actions.pet,
                     onFeed = feed,
                     onPurr = { interaction.purr(HomeMascotLine(R.string.home_mascot_purr)) },
+                    onSwitchSnack = actions.switchSnack,
                     onCallTo = { unitX -> walker.walkTo((unitX - CAT_CENTER_UNITS).coerceIn(0f, maxX)) },
                     onChinRelease = { interaction.chinRelease(HomeMascotChatter::chinLine) },
                 ),
@@ -334,6 +349,7 @@ private fun QuotaCat(
     idleAnimations: Boolean,
     walkX: () -> Float,
     facingLeft: Boolean,
+    snack: CatSnack,
     modifier: Modifier = Modifier,
 ) {
     val colors = CodexMeterTheme.colors
@@ -383,7 +399,9 @@ private fun QuotaCat(
                 if (idleAsleep) drawSleepyZ(ink, drift = (motion.tail.value + 1f) / 2f)
             }
             drawBowl(mood, bowlFill, ink, foodColor, stroke)
-            if (reaction == HomeMascotReaction.Treat) drawTreat(foodColor, ink, fall = interaction.effect)
+            if (reaction == HomeMascotReaction.Treat) {
+                drawTreat(foodColor, ink, fall = interaction.effect, snack = snack)
+            }
             // 拍碗、冒泡、星星這些心情動作都是坐在碗邊才做的；貓走開時先不畫
             if (x < AT_HOME_UNITS) drawMoodDecoration(mood, motion, ink, bodyFill, foodColor)
         }
@@ -539,12 +557,18 @@ private const val PURR_WAVE_ALPHA = 0.6f
 private const val PURR_WAVE_LAG = 0.5f
 private const val PURR_WAVE_GROWTH = 6f
 
-/** 台詞最多帶兩個參數（剩餘 %、補貨時間），分開呼叫避免展開陣列。 */
+/**
+ * 台詞最多帶兩個參數（剩餘 %、補貨時間），分開呼叫避免展開陣列。
+ * 參數本身也可以是一句台詞（例如點心名稱），會先翻成文字再塞進去。
+ */
 @Composable
-private fun reactionText(line: HomeMascotLine): String = when (line.args.size) {
-    0 -> stringResource(line.resId)
-    1 -> stringResource(line.resId, line.args[0])
-    else -> stringResource(line.resId, line.args[0], line.args[1])
+private fun reactionText(line: HomeMascotLine): String {
+    val args = line.args.map { arg -> if (arg is HomeMascotLine) reactionText(arg) else arg }
+    return when (args.size) {
+        0 -> stringResource(line.resId)
+        1 -> stringResource(line.resId, args[0])
+        else -> stringResource(line.resId, args[0], args[1])
+    }
 }
 
 private const val HOP_HEIGHT = 5f
@@ -606,12 +630,41 @@ private fun DrawScope.drawSleepyZ(ink: Color, drift: Float) {
 
 /** 雙擊加菜：一顆飼料從右上拋物線掉進碗，掉完冒兩顆小星。fall 0→1。座標是畫布上的位置，不抽常數。 */
 @Suppress("MagicNumber")
-private fun DrawScope.drawTreat(food: Color, ink: Color, fall: Float) {
+private fun DrawScope.drawTreat(food: Color, ink: Color, fall: Float, snack: CatSnack = CatSnack.KIBBLE) {
     if (fall <= 0f || fall >= 1f) return
     val x = TREAT_START_X + (TREAT_END_X - TREAT_START_X) * fall
     val y = TREAT_START_Y + (TREAT_END_Y - TREAT_START_Y) * fall - TREAT_ARC * fall * (1f - fall) * 4f
-    drawCircle(food, radius = 1.8f, center = Offset(x, y))
-    drawCircle(ink, radius = 1.8f, center = Offset(x, y), style = Stroke(1f))
+    when (snack) {
+        // 小魚乾：橢圓魚身＋三角尾巴
+        CatSnack.DRIED_FISH -> {
+            drawOval(food, Offset(x - 2.4f, y - 1.2f), Size(4f, 2.4f))
+            drawPath(
+                Path().apply {
+                    moveTo(x + 1.4f, y)
+                    lineTo(x + 3.2f, y - 1.3f)
+                    lineTo(x + 3.2f, y + 1.3f)
+                    close()
+                },
+                food,
+            )
+            drawOval(ink, Offset(x - 2.4f, y - 1.2f), Size(4f, 2.4f), style = Stroke(0.8f))
+        }
+        // 肉泥：水滴形
+        CatSnack.CHURU -> {
+            val drop = Path().apply {
+                moveTo(x, y - 2.6f)
+                cubicTo(x + 2.2f, y, x + 1.8f, y + 2f, x, y + 2f)
+                cubicTo(x - 1.8f, y + 2f, x - 2.2f, y, x, y - 2.6f)
+                close()
+            }
+            drawPath(drop, food)
+            drawPath(drop, ink, style = Stroke(0.8f))
+        }
+        CatSnack.KIBBLE -> {
+            drawCircle(food, radius = 1.8f, center = Offset(x, y))
+            drawCircle(ink, radius = 1.8f, center = Offset(x, y), style = Stroke(1f))
+        }
+    }
     if (fall > 0.8f) {
         val a = (fall - 0.8f) / 0.2f
         listOf(Offset(43f, 42f), Offset(55f, 41f)).forEach { c ->

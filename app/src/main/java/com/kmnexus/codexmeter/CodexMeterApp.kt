@@ -167,6 +167,12 @@ class CodexMeterApp :
     val appearancePreferenceStore: AppearancePreferenceStore
         get() = appContainer.appearancePreferences
 
+    /** 額度貓的記憶存在外觀設定同一個檔案裡。 */
+    val catMemoryStore: com.kmnexus.codexmeter.domain.cat.CatMemoryStore by lazy {
+        appContainer.appearancePreferences as? com.kmnexus.codexmeter.domain.cat.CatMemoryStore
+            ?: com.kmnexus.codexmeter.domain.cat.InMemoryCatMemoryStore()
+    }
+
     val initialThemeMode: ThemeMode
         get() = appContainer.initialThemeMode
 

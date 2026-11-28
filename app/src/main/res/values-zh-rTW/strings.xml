@@ -482,4 +482,26 @@
     <string name="settings_cat_effects_hidden">隱藏</string>
     <string name="settings_cat_effects_description">全開會散步；輕量只在點牠時動；靜態完全不動畫；隱藏就不顯示貓。</string>
     <string name="settings_cat_effects_system_off">系統已關閉動畫，額度貓會自動保持靜態。</string>
+    <string name="home_cat_idle_hungry_1">這碗滿滿的，快開動喵！</string>
+    <string name="home_cat_idle_hungry_2">再不吃就要重置囉喵！</string>
+    <string name="home_cat_idle_relaxed_1">這速度很穩，繼續保持～</string>
+    <string name="home_cat_idle_relaxed_2">吃飽飽，曬太陽中</string>
+    <string name="home_cat_idle_stuffed_1">吃太快啦，喝口水喘一下</string>
+    <string name="home_cat_idle_stuffed_2">慢點吃，小心噎到喔喵</string>
+    <string name="home_cat_idle_ate_all_1">碗底朝天，等補貨睡一下</string>
+    <string name="home_cat_idle_any_1">尾巴今天也很蓬喵</string>
+    <string name="home_cat_idle_any_2">陽台好暖，伸個懶腰</string>
+    <string name="home_cat_idle_any_3">我在顧碗，你放心</string>
+    <string name="home_cat_morning">早安！今天也平平安安</string>
+    <string name="home_cat_level1">一起看碗%1$d天囉！</string>
+    <string name="home_cat_level2">你最近常來看我耶</string>
+    <string name="home_cat_level3">有你在，陽台最溫暖喵</string>
+    <string name="home_cat_feed_kibble">喀滋喀滋，飼料真香！</string>
+    <string name="home_cat_feed_fish">哇！是凍乾小魚乾喵！</string>
+    <string name="home_cat_feed_churu">肉泥！貓生圓滿了～</string>
+    <string name="home_cat_full">飽到打嗝，換你用AI啦</string>
+    <string name="home_cat_snack_switched">換成%1$s囉，開飯吧！</string>
+    <string name="home_cat_snack_kibble">飼料</string>
+    <string name="home_cat_snack_fish">小魚乾</string>
+    <string name="home_cat_snack_churu">肉泥</string>
 </resources>

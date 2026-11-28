@@ -96,6 +96,7 @@ internal fun Modifier.catStageGestures(
     onPurr: () -> Unit,
     onCallTo: (Float) -> Unit,
     onChinRelease: () -> Unit,
+    onSwitchSnack: () -> Unit = {},
 ): Modifier = this
     .pointerInput(interaction) {
         detectTapGestures(
@@ -107,7 +108,14 @@ internal fun Modifier.catStageGestures(
                 }
             },
             onDoubleTap = { offset -> if (hitTest(offset.x) == StageTarget.Cat) onFeed() },
-            onLongPress = { offset -> if (hitTest(offset.x) == StageTarget.Cat) onPurr() },
+            onLongPress = { offset ->
+                // 長按貓：呼嚕；長按碗：換點心
+                when (hitTest(offset.x)) {
+                    StageTarget.Cat -> onPurr()
+                    StageTarget.Bowl -> onSwitchSnack()
+                    is StageTarget.Floor -> Unit
+                }
+            },
         )
     }
     .pointerInput(interaction) {

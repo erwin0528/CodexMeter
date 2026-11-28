@@ -482,4 +482,26 @@
     <string name="settings_cat_effects_hidden">Hidden</string>
     <string name="settings_cat_effects_description">Full: walks around. Light: moves only when you tap it. Static: no animation. Hidden: no cat on Home.</string>
     <string name="settings_cat_effects_system_off">System animations are off, so the cat stays static.</string>
+    <string name="home_cat_idle_hungry_1">Bowl is full, dig in!</string>
+    <string name="home_cat_idle_hungry_2">Eat before it resets!</string>
+    <string name="home_cat_idle_relaxed_1">Steady pace, keep it up</string>
+    <string name="home_cat_idle_relaxed_2">Full and sunbathing</string>
+    <string name="home_cat_idle_stuffed_1">Slow down, sip water</string>
+    <string name="home_cat_idle_stuffed_2">Easy, don\'t choke!</string>
+    <string name="home_cat_idle_ate_all_1">Bowl empty, nap time</string>
+    <string name="home_cat_idle_any_1">Fluffy tail today</string>
+    <string name="home_cat_idle_any_2">Warm balcony, big stretch</string>
+    <string name="home_cat_idle_any_3">I\'m watching the bowl</string>
+    <string name="home_cat_morning">Morning! Stay safe today</string>
+    <string name="home_cat_level1">%1$d days together!</string>
+    <string name="home_cat_level2">You visit a lot lately</string>
+    <string name="home_cat_level3">Cozy with you around</string>
+    <string name="home_cat_feed_kibble">Crunch crunch, tasty!</string>
+    <string name="home_cat_feed_fish">Wow, dried fish!</string>
+    <string name="home_cat_feed_churu">Purée! Life is good</string>
+    <string name="home_cat_full">So full! Your turn, AI</string>
+    <string name="home_cat_snack_switched">Now serving %1$s!</string>
+    <string name="home_cat_snack_kibble">kibble</string>
+    <string name="home_cat_snack_fish">dried fish</string>
+    <string name="home_cat_snack_churu">purée</string>
 </resources>

@@ -40,6 +40,7 @@ class MainActivity : ComponentActivity() {
             CodexMeterTheme(themeMode = themeMode, fontScheme = CodexMeterFontScheme.MonoFocusGeistMono) {
               androidx.compose.runtime.CompositionLocalProvider(
                   com.kmnexus.codexmeter.ui.home.LocalCatEffects provides catEffects,
+                  com.kmnexus.codexmeter.ui.home.LocalCatMemoryStore provides codexMeterApp.catMemoryStore,
               ) {
                 CodexMeterNavHost(
                     startDestination = startDestination,

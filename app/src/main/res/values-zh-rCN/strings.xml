@@ -482,4 +482,26 @@
     <string name="settings_cat_effects_hidden">隐藏</string>
     <string name="settings_cat_effects_description">全开会散步；轻量只在点它时动；静态完全不动画；隐藏就不显示猫。</string>
     <string name="settings_cat_effects_system_off">系统已关闭动画，额度猫会自动保持静态。</string>
+    <string name="home_cat_idle_hungry_1">这碗满满的，快开动喵！</string>
+    <string name="home_cat_idle_hungry_2">再不吃就要重置啰喵！</string>
+    <string name="home_cat_idle_relaxed_1">这速度很稳，继续保持～</string>
+    <string name="home_cat_idle_relaxed_2">吃饱饱，晒太阳中</string>
+    <string name="home_cat_idle_stuffed_1">吃太快啦，喝口水喘一下</string>
+    <string name="home_cat_idle_stuffed_2">慢点吃，小心噎到喔喵</string>
+    <string name="home_cat_idle_ate_all_1">碗底朝天，等补货睡一下</string>
+    <string name="home_cat_idle_any_1">尾巴今天也很蓬喵</string>
+    <string name="home_cat_idle_any_2">阳台好暖，伸个懒腰</string>
+    <string name="home_cat_idle_any_3">我在看碗，你放心</string>
+    <string name="home_cat_morning">早安！今天也平平安安</string>
+    <string name="home_cat_level1">一起看碗%1$d天啰！</string>
+    <string name="home_cat_level2">你最近常来看我耶</string>
+    <string name="home_cat_level3">有你在，阳台最温暖喵</string>
+    <string name="home_cat_feed_kibble">咔滋咔滋，饲料真香！</string>
+    <string name="home_cat_feed_fish">哇！是冻干小鱼干喵！</string>
+    <string name="home_cat_feed_churu">肉泥！猫生圆满了～</string>
+    <string name="home_cat_full">饱到打嗝，换你用AI啦</string>
+    <string name="home_cat_snack_switched">换成%1$s啰，开饭吧！</string>
+    <string name="home_cat_snack_kibble">饲料</string>
+    <string name="home_cat_snack_fish">小鱼干</string>
+    <string name="home_cat_snack_churu">肉泥</string>
 </resources>
