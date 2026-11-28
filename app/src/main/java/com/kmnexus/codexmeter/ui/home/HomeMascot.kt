@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -64,7 +65,13 @@ enum class HomeMascotMood(
     Waiting(R.string.home_mascot_waiting, 0.4f),
 }
 
-data class HomeMascotState(val mood: HomeMascotMood, val refillAt: Instant? = null)
+data class HomeMascotState(
+    val mood: HomeMascotMood,
+    val refillAt: Instant? = null,
+    /** 點碗時要報的數字：主要視窗剩幾 %、什麼時候重置。 */
+    val remainingPercent: Int? = null,
+    val resetAt: Instant? = null,
+)
 
 object HomeMascotMoodResolver {
     fun resolve(status: HomeContentStatus, cards: List<HomeQuotaCardUi>, now: Instant): HomeMascotState {
@@ -76,18 +83,31 @@ object HomeMascotMoodResolver {
             ?: return HomeMascotState(HomeMascotMood.Waiting)
         val remaining = card.percent ?: return HomeMascotState(HomeMascotMood.Waiting)
         if (remaining <= 0 || card.status == HomeQuotaStatus.Exhausted) {
-            return HomeMascotState(HomeMascotMood.AteAll, refillAt = card.resetAt)
+            return HomeMascotState(
+                HomeMascotMood.AteAll,
+                refillAt = card.resetAt,
+                remainingPercent = 0,
+                resetAt = card.resetAt,
+            )
         }
         val timeLeft = card.timeLeftFraction(now)
             // 沒重置時間又是滿的＝還沒開始計時（Gemini 沒用之前就這樣），碗是滿的
-            ?: return HomeMascotState(if (remaining >= 100) HomeMascotMood.Hungry else HomeMascotMood.Waiting)
+            ?: return HomeMascotState(
+                if (remaining >= 100) HomeMascotMood.Hungry else HomeMascotMood.Waiting,
+                remainingPercent = remaining,
+            )
         val mood = when (QuotaPaceCalculator.pace(remaining, timeLeft)) {
             QuotaPace.UnderUsing -> HomeMascotMood.Hungry
             QuotaPace.OverUsing -> HomeMascotMood.Stuffed
             QuotaPace.Depleted -> HomeMascotMood.AteAll
             QuotaPace.OnTrack, QuotaPace.Unknown -> HomeMascotMood.Relaxed
         }
-        return HomeMascotState(mood, refillAt = card.resetAt.takeIf { mood == HomeMascotMood.AteAll })
+        return HomeMascotState(
+            mood,
+            refillAt = card.resetAt.takeIf { mood == HomeMascotMood.AteAll },
+            remainingPercent = remaining,
+            resetAt = card.resetAt,
+        )
     }
 
     private fun HomeQuotaCardUi.timeLeftFraction(now: Instant): Float? {
@@ -99,11 +119,19 @@ object HomeMascotMoodResolver {
 
 @Composable
 internal fun HomeMascotCard(state: HomeMascotState) {
-    val line = if (state.mood == HomeMascotMood.AteAll && state.refillAt != null) {
+    val interaction = rememberMascotInteraction(state.mood)
+    val moodLine = if (state.mood == HomeMascotMood.AteAll && state.refillAt != null) {
         stringResource(R.string.home_mascot_ate_all_refill, formattedInstant(state.refillAt))
     } else {
         stringResource(state.mood.lineResId)
     }
+    val reactionLine = when (interaction.reaction) {
+        HomeMascotReaction.Pet -> HomeMascotChatter.petLine(state.mood, interaction.petCount)
+        HomeMascotReaction.Bowl -> HomeMascotChatter.bowlLine(state, state.resetAt?.let { formattedInstant(it) })
+        HomeMascotReaction.Purr -> HomeMascotLine(R.string.home_mascot_purr)
+        HomeMascotReaction.None -> null
+    }
+    val line = reactionLine?.let { reactionText(it) } ?: moodLine
     QmLiquidGlassSurface(
         modifier = Modifier.fillMaxWidth(),
         role = LiquidGlassSurfaceRole.Card,
@@ -117,9 +145,11 @@ internal fun HomeMascotCard(state: HomeMascotState) {
         ) {
             QuotaCat(
                 mood = state.mood,
+                interaction = interaction,
                 modifier = Modifier
-                    .size(64.dp)
-                    .semantics { contentDescription = line },
+                    .size(72.dp)
+                    .semantics { contentDescription = line }
+                    .mascotGestures(interaction),
             )
             Column(verticalArrangement = Arrangement.spacedBy(CodexMeterSpacing.xs)) {
                 Text(
@@ -132,6 +162,12 @@ internal fun HomeMascotCard(state: HomeMascotState) {
                     text = line,
                     style = MaterialTheme.typography.titleSmall,
                     color = CodexMeterTheme.colors.primary,
+                    maxLines = 2,
+                )
+                Text(
+                    text = stringResource(R.string.home_mascot_hint),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = CodexMeterTheme.colors.secondary.copy(alpha = 0.7f),
                     maxLines = 2,
                 )
             }
@@ -194,7 +230,7 @@ private fun rememberCatMotion(enabled: Boolean): CatMotion {
 
 /** 原創線條貓，坐在飼料碗左邊。座標以 64×64 為底再縮放。 */
 @Composable
-private fun QuotaCat(mood: HomeMascotMood, modifier: Modifier = Modifier) {
+private fun QuotaCat(mood: HomeMascotMood, interaction: MascotInteraction, modifier: Modifier = Modifier) {
     val colors = CodexMeterTheme.colors
     val ink = colors.primary
     val bodyFill = colors.surface.copy(alpha = 0.55f)
@@ -211,9 +247,24 @@ private fun QuotaCat(mood: HomeMascotMood, modifier: Modifier = Modifier) {
         val unit = size.minDimension / 64f
         scale(unit, unit, pivot = Offset.Zero) {
             val stroke = Stroke(width = 1.8f, cap = StrokeCap.Round)
-            drawTail(ink, stroke, swing = motion.tail.value)
-            drawBody(ink, bodyFill, stroke)
-            drawHead(mood, ink, bodyFill, stroke, blink = motion.blink.value)
+            val purring = interaction.reaction == HomeMascotReaction.Purr
+            // 摸頭時整隻貓往上跳一下；呼嚕時尾巴甩得比較大
+            translate(top = -5f * interaction.hop.value) {
+                drawTail(ink, stroke, swing = motion.tail.value * if (purring) 1.8f else 1f)
+                drawBody(ink, bodyFill, stroke)
+                drawHead(
+                    // 呼嚕時一律瞇眼
+                    if (purring) HomeMascotMood.Relaxed else mood,
+                    ink,
+                    bodyFill,
+                    stroke,
+                    blink = motion.blink.value,
+                )
+            }
+            if (interaction.reaction == HomeMascotReaction.Pet) {
+                drawHeart(colors.danger, rise = interaction.effect.value)
+            }
+            if (purring) drawPurrWaves(ink, spread = interaction.effect.value)
             drawBowl(mood, ink, foodColor, stroke)
             when (mood) {
                 HomeMascotMood.Hungry -> drawPaw(ink, bodyFill, stroke, reach = motion.bob.value)
@@ -328,4 +379,47 @@ private fun DrawScope.drawQuestionMark(ink: Color, stroke: Stroke) {
     drawArc(ink, 180f, 250f, false, Offset(33f, 8f), Size(6f, 6f), style = stroke)
     drawLine(ink, Offset(36.5f, 14f), Offset(36f, 16f), 1.8f, StrokeCap.Round)
     drawCircle(ink, radius = 0.9f, center = Offset(36f, 19f))
+}
+
+/** 摸頭的小愛心：從頭頂往上飄並淡出。rise 0→1。 */
+private fun DrawScope.drawHeart(color: Color, rise: Float) {
+    if (rise <= 0f || rise >= 1f) return
+    val y = 12f - 10f * rise
+    val heart = Path().apply {
+        moveTo(33f, y + 3f)
+        cubicTo(29f, y, 30f, y - 3f, 33f, y - 1.2f)
+        cubicTo(36f, y - 3f, 37f, y, 33f, y + 3f)
+        close()
+    }
+    drawPath(heart, color.copy(alpha = 1f - rise))
+}
+
+/** 呼嚕的聲波：嘴巴旁邊往外擴的兩道弧線。spread 0→1。 */
+private fun DrawScope.drawPurrWaves(ink: Color, spread: Float) {
+    if (spread <= 0f || spread >= 1f) return
+    val alpha = PURR_WAVE_ALPHA * (1f - spread)
+    listOf(0f, PURR_WAVE_LAG).forEach { lag ->
+        val r = 3f + PURR_WAVE_GROWTH * ((spread + lag) % 1f)
+        drawArc(
+            ink.copy(alpha = alpha),
+            startAngle = -40f,
+            sweepAngle = 80f,
+            useCenter = false,
+            topLeft = Offset(30f - r, 26f - r),
+            size = Size(2 * r, 2 * r),
+            style = Stroke(1.2f, cap = StrokeCap.Round),
+        )
+    }
+}
+
+private const val PURR_WAVE_ALPHA = 0.6f
+private const val PURR_WAVE_LAG = 0.5f
+private const val PURR_WAVE_GROWTH = 6f
+
+/** 台詞最多帶兩個參數（剩餘 %、補貨時間），分開呼叫避免展開陣列。 */
+@Composable
+private fun reactionText(line: HomeMascotLine): String = when (line.args.size) {
+    0 -> stringResource(line.resId)
+    1 -> stringResource(line.resId, line.args[0])
+    else -> stringResource(line.resId, line.args[0], line.args[1])
 }

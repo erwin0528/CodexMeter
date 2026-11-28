@@ -312,7 +312,7 @@
     <string name="settings_battery_optimization_description">螢幕關閉時的省電機制會延遲背景重新整理；忽略它可讓重新整理更貼近你設定的間隔。</string>
     <string name="settings_battery_optimization_action">前往允許</string>
     <string name="settings_samsung_sleep_title">三星手機：加入永不休眠</string>
-    <string name="settings_samsung_sleep_description">三星會讓不常打開的 App 進入休眠，背景重新整理就會停。請到 設定 → 電池 → 背景使用限制 → 永不休眠的應用程式，把 CodexMeter 加進去。（選單名稱可能因 One UI 版本略有不同）</string>
+    <string name="settings_samsung_sleep_description">三星會讓不常打開的 App 進入休眠，背景重新整理就會停。請到 設定 → 電池（或 電池與裝置維護 → 電池）→ 背景用量上限 → 永不休眠應用程式，點「+」把 CodexMeter 加進去。（選單名稱可能因 One UI 版本略有不同）</string>
     <string name="settings_refresh_interval_title">重新整理間隔</string>
     <string name="settings_refresh_interval_description">背景重新整理額度的頻率。</string>
     <string name="settings_refresh_interval_15min">每 15 分鐘</string>
@@ -434,4 +434,24 @@
     <string name="home_trend_detail_hour_range">%1$s – %2$s</string>
     <string name="home_trend_detail_percent">%1$s%%</string>
     <string name="home_trend_detail_calls">%1$d 次</string>
+    <string name="app_update_install_ready_title">更新已就緒</string>
+    <string name="app_update_install_ready_text">點這裡安裝新版 CodexMeter</string>
+    <string name="home_mascot_hint">點我摸頭 · 點碗看剩多少 · 長按聽呼嚕</string>
+    <string name="home_mascot_pet_hungry_1">摸我不如去餵碗啦</string>
+    <string name="home_mascot_pet_hungry_2">碗還滿滿的喵，下班快用</string>
+    <string name="home_mascot_pet_relaxed_1">嗯…這節奏剛剛好</string>
+    <string name="home_mascot_pet_relaxed_2">再摸一下下</string>
+    <string name="home_mascot_pet_stuffed_1">吃太撐了，摸肚子要輕一點</string>
+    <string name="home_mascot_pet_stuffed_2">慢慢來，這週還很長</string>
+    <string name="home_mascot_pet_ate_all_1">吃光光，好滿足</string>
+    <string name="home_mascot_pet_ate_all_2">等補貨再一起吃</string>
+    <string name="home_mascot_pet_locked_1">碗打不開…幫我重新登入嘛</string>
+    <string name="home_mascot_pet_locked_2">摸頭也打不開碗啦</string>
+    <string name="home_mascot_pet_waiting_1">等等，飼料還在路上</string>
+    <string name="home_mascot_pet_waiting_2">先陪我等一下</string>
+    <string name="home_mascot_purr">呼嚕呼嚕…</string>
+    <string name="home_mascot_bowl">碗裡還剩 %1$d%%</string>
+    <string name="home_mascot_bowl_reset">碗裡還剩 %1$d%%，%2$s 補貨</string>
+    <string name="home_mascot_bowl_empty">碗是空的，沒什麼好看喵</string>
+    <string name="home_mascot_pet_enough">今天摸夠了喵，去用額度啦</string>
 </resources>

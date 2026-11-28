@@ -318,7 +318,7 @@
     <string name="settings_battery_optimization_description">Battery saving delays refresh while the screen is off. Ignoring it keeps refresh closer to your interval.</string>
     <string name="settings_battery_optimization_action">Allow</string>
     <string name="settings_samsung_sleep_title">Samsung: keep it awake</string>
-    <string name="settings_samsung_sleep_description">Samsung may put rarely opened apps to sleep and stop background refresh. Go to Settings → Battery → Background usage limits → Never sleeping apps, and add CodexMeter. (Menu names may vary by One UI version.)</string>
+    <string name="settings_samsung_sleep_description">Samsung may put rarely opened apps to sleep and stop background refresh. Go to Settings → Battery (or Battery and device care → Battery) → Background usage limits → Never sleeping apps, tap + and add CodexMeter. (Menu names may vary by One UI version.)</string>
     <string name="settings_refresh_interval_title">Refresh interval</string>
     <string name="settings_refresh_interval_description">How often to refresh quota in the background.</string>
     <string name="settings_refresh_interval_15min">Every 15 min</string>
@@ -434,4 +434,24 @@
     <string name="home_trend_detail_hour_range">%1$s – %2$s</string>
     <string name="home_trend_detail_percent">%1$s%%</string>
     <string name="home_trend_detail_calls">%1$d calls</string>
+    <string name="app_update_install_ready_title">Update ready to install</string>
+    <string name="app_update_install_ready_text">Tap to install the new version of CodexMeter</string>
+    <string name="home_mascot_hint">Tap to pet · tap the bowl to check · hold to make it purr</string>
+    <string name="home_mascot_pet_hungry_1">Petting me won\'t empty the bowl, go use it!</string>
+    <string name="home_mascot_pet_hungry_2">The bowl is still full, use it after work</string>
+    <string name="home_mascot_pet_relaxed_1">Mmm… this pace is just right</string>
+    <string name="home_mascot_pet_relaxed_2">Again, a little more</string>
+    <string name="home_mascot_pet_stuffed_1">Too stuffed, rub my belly gently</string>
+    <string name="home_mascot_pet_stuffed_2">Easy now, the week is still long</string>
+    <string name="home_mascot_pet_ate_all_1">All eaten up, so satisfied</string>
+    <string name="home_mascot_pet_ate_all_2">Let\'s eat again when it refills</string>
+    <string name="home_mascot_pet_locked_1">The bowl won\'t open… sign me back in?</string>
+    <string name="home_mascot_pet_locked_2">Head pats won\'t open the bowl</string>
+    <string name="home_mascot_pet_waiting_1">Hold on, the food is on its way</string>
+    <string name="home_mascot_pet_waiting_2">Wait here with me a bit</string>
+    <string name="home_mascot_purr">Purr… purr…</string>
+    <string name="home_mascot_bowl">%1$d%% left in the bowl</string>
+    <string name="home_mascot_bowl_reset">%1$d%% left in the bowl, refills %2$s</string>
+    <string name="home_mascot_bowl_empty">Bowl is empty, nothing to check</string>
+    <string name="home_mascot_pet_enough">That\'s enough petting today, go use your quota!</string>
 </resources>

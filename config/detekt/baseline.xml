@@ -125,7 +125,7 @@
     <ID>FunctionNaming:HomeHeroGlassLayer.kt$@Composable private fun HeroAccountAvatar(account: HomeAccountUi)</ID>
     <ID>FunctionNaming:HomeHeroGlassLayer.kt$@Composable private fun RefreshSuccessSweep(successCount: Int, modifier: Modifier = Modifier)</ID>
     <ID>FunctionNaming:HomeMascot.kt$@Composable internal fun HomeMascotCard(state: HomeMascotState)</ID>
-    <ID>FunctionNaming:HomeMascot.kt$@Composable private fun QuotaCat(mood: HomeMascotMood, modifier: Modifier = Modifier)</ID>
+    <ID>FunctionNaming:HomeMascot.kt$@Composable private fun QuotaCat(mood: HomeMascotMood, interaction: MascotInteraction, modifier: Modifier = Modifier)</ID>
     <ID>FunctionNaming:HomeQuotaCards.kt$@Composable internal fun HomeQuotaCards(quotaCards: List&lt;HomeQuotaCardUi&gt;)</ID>
     <ID>FunctionNaming:HomeQuotaCards.kt$@Composable private fun BalanceQuotaCard(card: HomeQuotaCardUi)</ID>
     <ID>FunctionNaming:HomeQuotaCards.kt$@Composable private fun PercentQuotaCard(card: HomeQuotaCardUi)</ID>
