@@ -1,12 +1,16 @@
 package com.kmnexus.codexmeter.ui.settings
 
 import android.Manifest
+import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.ContextWrapper
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.PowerManager
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
@@ -125,21 +129,32 @@ fun SettingsRoute(
     ) {
         batteryOptimizationIgnored = context.isIgnoringBatteryOptimizations()
     }
+    var settingsReturnTarget by remember { mutableStateOf<SettingsNotificationPermissionTarget?>(null) }
+    fun enableNotificationTarget(target: SettingsNotificationPermissionTarget) {
+        when (target) {
+            SettingsNotificationPermissionTarget.StatusNotification -> viewModel.setStatusNotificationEnabled(true)
+            SettingsNotificationPermissionTarget.AccountErrors -> viewModel.setAccountErrorsEnabled(true)
+        }
+    }
+    // 系統設定頁一律回 RESULT_CANCELED，所以回來後重新讀權限，有開才把開關打開。
+    val notificationSettingsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) {
+        settingsReturnTarget?.takeIf { context.hasNotificationPermission() }?.let(::enableNotificationTarget)
+        settingsReturnTarget = null
+    }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
-        when (pendingPermissionTarget) {
-            SettingsNotificationPermissionTarget.StatusNotification -> {
-                if (granted) {
-                    viewModel.setStatusNotificationEnabled(true)
+        pendingPermissionTarget?.let { target ->
+            when {
+                granted -> enableNotificationTarget(target)
+                context.isNotificationPermissionPermanentlyDenied() -> {
+                    // 已被永久拒絕：系統視窗不會再跳，直接帶去本 App 的通知設定頁。
+                    settingsReturnTarget = target
+                    notificationSettingsLauncher.launch(context.appNotificationSettingsIntent())
                 }
             }
-            SettingsNotificationPermissionTarget.AccountErrors -> {
-                if (granted) {
-                    viewModel.setAccountErrorsEnabled(true)
-                }
-            }
-            null -> Unit
         }
         pendingPermissionTarget = null
     }
@@ -324,6 +339,10 @@ fun SettingsScreen(
             onIntervalClick = { onChoiceDialogRequested(SettingsChoiceDialog.RefreshInterval) },
             showBatteryOptimizationHint = showBatteryOptimizationHint,
             onBatteryOptimizationClick = onBatteryOptimizationClick,
+            showSamsungSleepHint = SettingsBatteryOptimizationGate.shouldShowSamsungSleepHint(
+                manufacturer = Build.MANUFACTURER.orEmpty(),
+                backgroundRefreshEnabled = uiState.refresh.backgroundRefreshEnabled,
+            ),
         )
         SettingsSectionLabel(R.string.settings_group_data)
         DataCard(
@@ -643,6 +662,28 @@ private fun Context.hasNotificationPermission(): Boolean =
             this,
             Manifest.permission.POST_NOTIFICATIONS,
         ) == PackageManager.PERMISSION_GRANTED
+
+private fun Context.isNotificationPermissionPermanentlyDenied(): Boolean =
+    SettingsNotificationPermissionGate.shouldOpenSystemSettingsAfterDenial(
+        granted = false,
+        canShowRationale = canShowNotificationRationale(),
+    )
+
+private fun Context.canShowNotificationRationale(): Boolean {
+    val activity = findActivity() ?: return true
+    return Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+        activity.shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
+private fun Context.appNotificationSettingsIntent(): Intent =
+    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+        .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
 
 // Null when PowerManager is unavailable so the hint stays hidden rather than guessing.
 private fun Context.isIgnoringBatteryOptimizations(): Boolean? =

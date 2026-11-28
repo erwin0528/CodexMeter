@@ -72,5 +72,9 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/codexmeter_overview_widget_info" />
         </receiver>
+        <!-- 只收本 App 自己的 PackageInstaller 安裝狀態，不對外開放 -->
+        <receiver
+            android:name=".app.AppUpdateInstallReceiver"
+            android:exported="false" />
     </application>
 </manifest>

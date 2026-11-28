@@ -589,6 +589,8 @@ class SettingsViewModelTest {
         val viewModel = SettingsViewModel(
             appUpdateChecker = ImmediateAppUpdateCheckUseCase(AppUpdateCheckResult.UpdateAvailable(appUpdateInfo())),
             appUpdateDownloader = downloader,
+            // 測試裡安裝也走同一個測試排程器，才能用 runCurrent() 推進
+            installDispatcher = kotlinx.coroutines.Dispatchers.Main,
             currentVersionName = "0.1.0",
         )
 
@@ -609,6 +611,8 @@ class SettingsViewModelTest {
         val viewModel = SettingsViewModel(
             appUpdateChecker = ImmediateAppUpdateCheckUseCase(AppUpdateCheckResult.UpdateAvailable(appUpdateInfo())),
             appUpdateDownloader = downloader,
+            // 測試裡安裝也走同一個測試排程器，才能用 runCurrent() 推進
+            installDispatcher = kotlinx.coroutines.Dispatchers.Main,
             currentVersionName = "0.1.0",
         )
 

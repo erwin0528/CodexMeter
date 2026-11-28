@@ -307,6 +307,7 @@ internal fun RefreshCard(
     onIntervalClick: () -> Unit,
     showBatteryOptimizationHint: Boolean = false,
     onBatteryOptimizationClick: () -> Unit = {},
+    showSamsungSleepHint: Boolean = false,
 ) {
     SettingsSurfaceCard {
         Column(verticalArrangement = Arrangement.spacedBy(CodexMeterSpacing.md)) {
@@ -348,6 +349,12 @@ internal fun RefreshCard(
                         Text(text = stringResource(R.string.settings_battery_optimization_action))
                     }
                 }
+            }
+            if (showSamsungSleepHint) {
+                SettingsItemText(
+                    titleResId = R.string.settings_samsung_sleep_title,
+                    descriptionResId = R.string.settings_samsung_sleep_description,
+                )
             }
         }
     }

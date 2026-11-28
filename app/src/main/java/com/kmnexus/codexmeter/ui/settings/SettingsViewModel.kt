@@ -44,7 +44,10 @@ import com.kmnexus.codexmeter.domain.update.NoopAppUpdateCheckUseCase
 import com.kmnexus.codexmeter.domain.update.NoopAppUpdateDownloadUseCase
 import com.kmnexus.codexmeter.domain.update.NoopUpdatePreferenceStore
 import com.kmnexus.codexmeter.domain.update.UpdatePreferenceStore
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -356,6 +359,7 @@ class SettingsViewModel(
     private val appearancePreferenceStore: AppearancePreferenceStore = NoopAppearancePreferenceStore,
     private val updatePreferenceStore: UpdatePreferenceStore = NoopUpdatePreferenceStore,
     private val updateCheckScheduler: UpdateCheckScheduler = NoopUpdateCheckScheduler,
+    private val installDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(
         SettingsUiState(
@@ -895,12 +899,17 @@ class SettingsViewModel(
 
     fun installDownloadedUpdate() {
         val ready = _uiState.value.update.readyToInstall ?: return
-        val launched = runCatching { appUpdateDownloader.launchInstall(ready.downloadId) }.getOrDefault(false)
-        if (!launched) {
-            update { state ->
-                state.copy(
-                    update = state.update.copy(statusLabelResId = R.string.settings_update_status_install_failed),
-                )
+        viewModelScope.launch {
+            // 安裝前要把 APK 寫進安裝工作階段，是磁碟 IO，不能卡在主執行緒。
+            val launched = withContext(installDispatcher) {
+                runCatching { appUpdateDownloader.launchInstall(ready.downloadId) }.getOrDefault(false)
+            }
+            if (!launched) {
+                update { state ->
+                    state.copy(
+                        update = state.update.copy(statusLabelResId = R.string.settings_update_status_install_failed),
+                    )
+                }
             }
         }
     }

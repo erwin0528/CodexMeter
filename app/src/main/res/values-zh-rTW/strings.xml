@@ -311,6 +311,8 @@
     <string name="settings_battery_optimization_title">提升背景重新整理可靠性</string>
     <string name="settings_battery_optimization_description">螢幕關閉時的省電機制會延遲背景重新整理；忽略它可讓重新整理更貼近你設定的間隔。</string>
     <string name="settings_battery_optimization_action">前往允許</string>
+    <string name="settings_samsung_sleep_title">三星手機：加入永不休眠</string>
+    <string name="settings_samsung_sleep_description">三星會讓不常打開的 App 進入休眠，背景重新整理就會停。請到 設定 → 電池 → 背景使用限制 → 永不休眠的應用程式，把 CodexMeter 加進去。（選單名稱可能因 One UI 版本略有不同）</string>
     <string name="settings_refresh_interval_title">重新整理間隔</string>
     <string name="settings_refresh_interval_description">背景重新整理額度的頻率。</string>
     <string name="settings_refresh_interval_15min">每 15 分鐘</string>

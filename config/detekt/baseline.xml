@@ -167,7 +167,7 @@
     <ID>FunctionNaming:SettingsCards.kt$@Composable internal fun DataCard( data: SettingsDataUi, onRetentionClick: () -&gt; Unit, onClearCurrentHistoryClick: () -&gt; Unit, onClearAllHistoryClick: () -&gt; Unit, )</ID>
     <ID>FunctionNaming:SettingsCards.kt$@Composable internal fun DiagnosticsCard( diagnostics: SettingsDiagnosticsUi, onDiagnosticsToggle: () -&gt; Unit, onDiagnosticsCopyClick: () -&gt; Unit, onDiagnosticsRecheckClick: () -&gt; Unit, )</ID>
     <ID>FunctionNaming:SettingsCards.kt$@Composable internal fun PersistentNotificationCard( persistentNotification: SettingsPersistentNotificationUi, onEnabledChanged: (Boolean) -&gt; Unit, onAccountClick: () -&gt; Unit, onWindowClick: () -&gt; Unit, )</ID>
-    <ID>FunctionNaming:SettingsCards.kt$@Composable internal fun RefreshCard( refresh: SettingsRefreshUi, onBackgroundRefreshChanged: (Boolean) -&gt; Unit, onIntervalClick: () -&gt; Unit, showBatteryOptimizationHint: Boolean = false, onBatteryOptimizationClick: () -&gt; Unit = {}, )</ID>
+    <ID>FunctionNaming:SettingsCards.kt$@Composable internal fun RefreshCard( refresh: SettingsRefreshUi, onBackgroundRefreshChanged: (Boolean) -&gt; Unit, onIntervalClick: () -&gt; Unit, showBatteryOptimizationHint: Boolean = false, onBatteryOptimizationClick: () -&gt; Unit = {}, showSamsungSleepHint: Boolean = false, )</ID>
     <ID>FunctionNaming:SettingsCards.kt$@Composable private fun AppleThresholdThumb(color: Color)</ID>
     <ID>FunctionNaming:SettingsCards.kt$@Composable private fun AppleThresholdTrack( value: Float, valueRange: ClosedFloatingPointRange&lt;Float&gt;, color: Color, )</ID>
     <ID>FunctionNaming:SettingsCards.kt$@Composable private fun BalanceStepperRow( titleResId: Int, color: Color, currencySymbol: String, value: Double, onDecrement: () -&gt; Unit, onIncrement: () -&gt; Unit, )</ID>
@@ -929,7 +929,7 @@
     <ID>ReturnCount:DiagnosticsTimeFormatter.kt$DiagnosticsTimeFormatter$fun renderAgeOnly(epochMillisText: String?, nowMillis: Long?): String?</ID>
     <ID>ReturnCount:ExchangeRateClient.kt$ExchangeRateClient$suspend fun fetchRates(now: Instant): ExchangeRates?</ID>
     <ID>ReturnCount:ExchangeRates.kt$CurrencyConverter$fun convert(amount: Double, from: String?, to: String?, rates: ExchangeRates): Double?</ID>
-    <ID>ReturnCount:GeminiRefreshProvider.kt$GeminiRefreshProvider$override suspend fun refresh( account: ProviderAccount, trigger: RefreshTrigger, ): ProviderRefreshResult</ID>
+    <ID>ReturnCount:GeminiRefreshProvider.kt$GeminiRefreshProvider$private suspend fun refreshLocked( account: ProviderAccount, trigger: RefreshTrigger, ): ProviderRefreshResult</ID>
     <ID>ReturnCount:GeminiUsageDto.kt$GeminiUsageDecoder$fun decode(body: String): Decoded</ID>
     <ID>ReturnCount:GitHubReleaseAppUpdateChecker.kt$GitHubReleaseAppUpdateChecker$override suspend fun checkForUpdate(currentVersionName: String): AppUpdateCheckResult</ID>
     <ID>ReturnCount:GrokDeviceCodeClient.kt$GrokDeviceCodeClient$private fun trustedVerificationUri(candidate: String): String?</ID>

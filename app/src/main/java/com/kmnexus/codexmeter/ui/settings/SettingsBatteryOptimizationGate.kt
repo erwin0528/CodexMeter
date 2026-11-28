@@ -11,4 +11,12 @@ object SettingsBatteryOptimizationGate {
         backgroundRefreshEnabled: Boolean,
     ): Boolean =
         backgroundRefreshEnabled && batteryOptimizationIgnored == false
+
+    // 三星 One UI 另有自己的「休眠應用程式」名單，跟 Android 的電池最佳化是兩回事，
+    // App 讀不到自己在不在名單裡，所以只在三星手機、背景刷新開著時顯示文字指引。
+    fun shouldShowSamsungSleepHint(
+        manufacturer: String,
+        backgroundRefreshEnabled: Boolean,
+    ): Boolean =
+        backgroundRefreshEnabled && manufacturer.equals("samsung", ignoreCase = true)
 }

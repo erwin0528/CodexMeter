@@ -37,4 +37,34 @@ class SettingsNotificationPermissionGateTest {
             ),
         )
     }
+
+    @Test
+    fun `permanent denial opens system notification settings`() {
+        assertTrue(
+            SettingsNotificationPermissionGate.shouldOpenSystemSettingsAfterDenial(
+                granted = false,
+                canShowRationale = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `first denial with rationale available stays in app`() {
+        assertFalse(
+            SettingsNotificationPermissionGate.shouldOpenSystemSettingsAfterDenial(
+                granted = false,
+                canShowRationale = true,
+            ),
+        )
+    }
+
+    @Test
+    fun `granted permission never opens system settings`() {
+        assertFalse(
+            SettingsNotificationPermissionGate.shouldOpenSystemSettingsAfterDenial(
+                granted = true,
+                canShowRationale = false,
+            ),
+        )
+    }
 }

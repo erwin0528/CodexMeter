@@ -317,6 +317,8 @@
     <string name="settings_battery_optimization_title">提升后台刷新可靠性</string>
     <string name="settings_battery_optimization_description">息屏时省电策略会延迟后台刷新；忽略它可让刷新更贴近你设定的间隔。</string>
     <string name="settings_battery_optimization_action">去允许</string>
+    <string name="settings_samsung_sleep_title">三星手机：加入永不休眠</string>
+    <string name="settings_samsung_sleep_description">三星会让不常打开的 App 进入休眠，后台刷新就会停。请到 设置 → 电池 → 后台使用限制 → 永不休眠的应用程序，把 CodexMeter 加进去。（菜单名称可能因 One UI 版本略有不同）</string>
     <string name="settings_refresh_interval_title">刷新间隔</string>
     <string name="settings_refresh_interval_description">后台刷新额度的频率。</string>
     <string name="settings_refresh_interval_15min">每 15 分钟</string>

@@ -44,4 +44,16 @@ class SettingsBatteryOptimizationGateTest {
             ),
         )
     }
+
+    @Test
+    fun `samsung with background refresh shows sleeping apps hint`() {
+        assertTrue(SettingsBatteryOptimizationGate.shouldShowSamsungSleepHint("samsung", true))
+        assertTrue(SettingsBatteryOptimizationGate.shouldShowSamsungSleepHint("SAMSUNG", true))
+    }
+
+    @Test
+    fun `non samsung or refresh off hides sleeping apps hint`() {
+        assertFalse(SettingsBatteryOptimizationGate.shouldShowSamsungSleepHint("Google", true))
+        assertFalse(SettingsBatteryOptimizationGate.shouldShowSamsungSleepHint("samsung", false))
+    }
 }

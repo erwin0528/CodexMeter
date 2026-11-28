@@ -317,6 +317,8 @@
     <string name="settings_battery_optimization_title">Improve background reliability</string>
     <string name="settings_battery_optimization_description">Battery saving delays refresh while the screen is off. Ignoring it keeps refresh closer to your interval.</string>
     <string name="settings_battery_optimization_action">Allow</string>
+    <string name="settings_samsung_sleep_title">Samsung: keep it awake</string>
+    <string name="settings_samsung_sleep_description">Samsung may put rarely opened apps to sleep and stop background refresh. Go to Settings → Battery → Background usage limits → Never sleeping apps, and add CodexMeter. (Menu names may vary by One UI version.)</string>
     <string name="settings_refresh_interval_title">Refresh interval</string>
     <string name="settings_refresh_interval_description">How often to refresh quota in the background.</string>
     <string name="settings_refresh_interval_15min">Every 15 min</string>

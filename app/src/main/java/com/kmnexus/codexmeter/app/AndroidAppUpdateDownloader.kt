@@ -2,12 +2,14 @@ package com.kmnexus.codexmeter.app
 
 import android.app.DownloadManager
 import android.content.Context
+import android.content.pm.PackageInstaller
 import android.net.Uri
 import android.os.Environment
 import com.kmnexus.codexmeter.R
 import com.kmnexus.codexmeter.domain.update.AppUpdateDownloadResult
 import com.kmnexus.codexmeter.domain.update.AppUpdateDownloadUseCase
 import com.kmnexus.codexmeter.domain.update.AppUpdateInfo
+import java.io.FileInputStream
 
 class AndroidAppUpdateDownloader(
     context: Context,
@@ -57,22 +59,32 @@ class AndroidAppUpdateDownloader(
     }
 
     /**
-     * 用系統下載器給的 content:// URI 交給系統安裝程式。Android 會檢查簽章：
-     * 只有跟現在裝的同一把金鑰簽的 APK 才能覆蓋安裝。
+     * 用 PackageInstaller 安裝：直接把下載好的 APK 寫進安裝工作階段（session），
+     * 不再把 content:// 網址丟給別的 App，避免某些手機上「權限沒轉過去、安裝畫面不跳」。
+     * Android 仍會檢查簽章：只有跟現在裝的同一把金鑰簽的 APK 才能覆蓋安裝。
+     * 寫檔是磁碟 IO，呼叫端要放在背景執行緒。
      */
-    override fun launchInstall(downloadId: Long): Boolean {
-        val downloadManager = appContext.getSystemService(DownloadManager::class.java) ?: return false
-        val uri = downloadManager.getUriForDownloadedFile(downloadId) ?: return false
-        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW)
-            .setDataAndType(uri, APK_MIME_TYPE)
-            .addFlags(
-                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                    android.content.Intent.FLAG_ACTIVITY_NEW_TASK,
-            )
-        return runCatching { appContext.startActivity(intent) }.isSuccess
-    }
+    override fun launchInstall(downloadId: Long): Boolean = runCatching {
+        val downloadManager = appContext.getSystemService(DownloadManager::class.java)
+            ?: error("download_manager_unavailable")
+        val installer = appContext.packageManager.packageInstaller
+        val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
+        val sessionId = installer.createSession(params)
+        installer.openSession(sessionId).use { session ->
+            downloadManager.openDownloadedFile(downloadId).use { descriptor ->
+                FileInputStream(descriptor.fileDescriptor).use { input ->
+                    session.openWrite(SESSION_APK_NAME, 0, descriptor.statSize).use { output ->
+                        input.copyTo(output)
+                        session.fsync(output)
+                    }
+                }
+            }
+            session.commit(AppUpdateInstallReceiver.statusSender(appContext, sessionId))
+        }
+    }.isSuccess
 
     private companion object {
+        const val SESSION_APK_NAME = "codexmeter.apk"
         const val APK_MIME_TYPE = "application/vnd.android.package-archive"
         const val POLL_INTERVAL_MILLIS = 1_000L
 

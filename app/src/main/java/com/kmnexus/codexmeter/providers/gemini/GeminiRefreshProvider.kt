@@ -13,6 +13,9 @@ import com.kmnexus.codexmeter.providers.gemini.session.GeminiSessionPayload
 import com.kmnexus.codexmeter.refresh.ProviderRefreshResult
 import com.kmnexus.codexmeter.refresh.RefreshProvider
 import java.time.Clock
+import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 
 class GeminiRefreshProvider(
@@ -23,7 +26,14 @@ class GeminiRefreshProvider(
 ) : RefreshProvider {
     private val json = Json { ignoreUnknownKeys = true }
 
+    // 同一個帳號的刷新排隊進行：後到的那次會讀到前一次剛寫回的新 Cookie，
+    // 加上 rotatedAt 冷卻，就不會兩次同時去打 Google 的輪替端點、互相蓋掉結果。
     override suspend fun refresh(
+        account: ProviderAccount,
+        trigger: RefreshTrigger,
+    ): ProviderRefreshResult = lockFor(account).withLock { refreshLocked(account, trigger) }
+
+    private suspend fun refreshLocked(
         account: ProviderAccount,
         trigger: RefreshTrigger,
     ): ProviderRefreshResult {
@@ -56,6 +66,10 @@ class GeminiRefreshProvider(
     }
 
     private suspend fun persist(previous: ProviderSessionEnvelope, session: GeminiSessionPayload) {
+        // 寫回前再讀一次：如果這段時間使用者重新登入過（存檔已經換掉），
+        // 這次輪替拿到的是舊帳號狀態，丟掉不寫，免得把新登入的 Cookie 蓋回舊的。
+        val current = sessionStore.load(previous.providerId, previous.localAccountId)
+        if (!isStillCurrent(previous, current)) return
         val encrypted = payloadCipher.encrypt(
             json.encodeToString(GeminiSessionPayload.serializer(), session).encodeToByteArray(),
         )
@@ -68,6 +82,9 @@ class GeminiRefreshProvider(
         )
     }
 
+    private fun lockFor(account: ProviderAccount): Mutex =
+        accountLocks.getOrPut("${account.providerId.value}/${account.localAccountId.value}") { Mutex() }
+
     private fun authRequired(digest: String): ProviderRefreshResult =
         ProviderRefreshResult.Failure(QuotaError.AuthRequired(httpStatus = null, diagnosticsDigest = digest))
 
@@ -78,5 +95,15 @@ class GeminiRefreshProvider(
         RefreshTrigger.ImportValidation -> QuotaSnapshotSource.CookieAuth
         RefreshTrigger.AccountSwitch -> QuotaSnapshotSource.ManualRefresh
         RefreshTrigger.Periodic -> QuotaSnapshotSource.BackgroundRefresh
+    }
+
+    internal companion object {
+        // 放在 companion：就算 Provider 被建立多次，同一帳號仍共用同一把鎖。
+        private val accountLocks = ConcurrentHashMap<String, Mutex>()
+
+        fun isStillCurrent(started: ProviderSessionEnvelope, current: ProviderSessionEnvelope?): Boolean =
+            current != null &&
+                current.payloadNonce.contentEquals(started.payloadNonce) &&
+                current.payloadCiphertext.contentEquals(started.payloadCiphertext)
     }
 }
