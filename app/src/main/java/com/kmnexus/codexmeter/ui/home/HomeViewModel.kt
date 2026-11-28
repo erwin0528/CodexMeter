@@ -181,9 +181,11 @@ class HomeViewModel(
         if (accountListLoadJob?.isActive == true) return
         accountListLoadJob = viewModelScope.launch {
             val choices = try {
-                accountListUseCase.loadAccounts().accounts
+                val result = accountListUseCase.loadAccounts()
+                result.accounts
                     .filterNot { it.status == AccountStatus.Deleted }
                     .map { account ->
+                        val quota = HomeAccountChoiceQuota.from(result.latestQuotaSnapshots[account.localAccountId])
                         HomeAccountChoiceUi(
                             localAccountId = account.localAccountId,
                             providerId = account.providerId,
@@ -191,6 +193,8 @@ class HomeViewModel(
                             avatarInitial = account.avatarInitial,
                             avatarColorKey = account.avatarColorKey,
                             providerIconResId = ProviderRegistry.iconFor(account.providerId),
+                            remainingPercent = quota.remainingPercent,
+                            pace = quota.pace,
                         )
                     }
             } catch (exception: CancellationException) {
@@ -211,6 +215,8 @@ class HomeViewModel(
                 manualRefreshSuccessCount += 1
             }
             updateCurrentQuotaState(refreshedState)
+            // 刷新後比較列的百分比也要跟著更新
+            loadAccountChoices()
         }
     }
 

@@ -55,6 +55,11 @@ data class HomeAccountChoiceUi(
     val avatarInitial: String,
     val avatarColorKey: String,
     @param:DrawableRes val providerIconResId: Int? = null,
+    /** 主要額度（通常是 5 小時）還剩幾 %，首頁比較列用；沒資料為 null。 */
+    val remainingPercent: Int? = null,
+    /** 主要額度的用量節奏，決定比較列小圓點的顏色。 */
+    val pace: com.kmnexus.codexmeter.widget.overview.QuotaPace =
+        com.kmnexus.codexmeter.widget.overview.QuotaPace.Unknown,
 )
 
 sealed class HomeCreditsUi {

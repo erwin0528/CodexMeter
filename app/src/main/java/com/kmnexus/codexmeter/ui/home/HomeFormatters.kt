@@ -15,8 +15,8 @@ internal fun formattedInstant(instant: Instant): String {
     val locale = LocalConfiguration.current.locales[0]
     return remember(instant, locale) {
         val zone = ZoneId.systemDefault()
-        // 今天只顯示時間（下午 9:42），其他天「11/24 下午 9:42」；年份省略，卡片上才放得下。
-        val skeleton = if (instant.atZone(zone).toLocalDate() == java.time.LocalDate.now(zone)) "jm" else "Mdjm"
+        // 今天只顯示時間（21:42），其他天「11/24 21:42」；24 小時制比「下午 9:42」短，字放大也不會被切掉。
+        val skeleton = if (instant.atZone(zone).toLocalDate() == java.time.LocalDate.now(zone)) "Hm" else "MdHm"
         DateTimeFormatter
             .ofPattern(android.text.format.DateFormat.getBestDateTimePattern(locale, skeleton), locale)
             .withZone(zone)

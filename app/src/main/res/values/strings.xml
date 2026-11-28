@@ -436,7 +436,7 @@
     <string name="home_trend_detail_calls">%1$d calls</string>
     <string name="app_update_install_ready_title">Update ready to install</string>
     <string name="app_update_install_ready_text">Tap to install the new version of CodexMeter</string>
-    <string name="home_mascot_hint">Tap: pet · double-tap: treat · swipe: chin rub · hold: purr · tap this text: check bowl</string>
+    <string name="home_mascot_hint">Tap the line for bowl status · hold to purr</string>
     <string name="home_mascot_pet_hungry_1">Petting me won\'t empty the bowl, go use it!</string>
     <string name="home_mascot_pet_hungry_2">The bowl is still full, use it after work</string>
     <string name="home_mascot_pet_relaxed_1">Mmm… this pace is just right</string>
@@ -472,4 +472,7 @@
     <string name="account_forecast_leftover">On pace to last, about %1$d%% left at reset</string>
     <string name="account_forecast_exact">On pace to use it all up</string>
     <string name="account_forecast_daily">About %1$d%% a day to use it all</string>
+    <string name="home_updated_at_format">Updated %1$s</string>
+    <string name="overview_widget_pool_format">Gemini total %1$d%%</string>
+    <string name="overview_widget_pool_with_refill_format">Gemini total %1$d%% · next refill %2$s</string>
 </resources>

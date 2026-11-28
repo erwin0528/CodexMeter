@@ -207,7 +207,8 @@ private fun MascotTextColumn(line: String, modifier: Modifier, onClick: () -> Un
             text = stringResource(R.string.home_mascot_hint),
             style = MaterialTheme.typography.labelSmall,
             color = CodexMeterTheme.colors.secondary.copy(alpha = 0.7f),
-            maxLines = 2,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
         )
     }
 }

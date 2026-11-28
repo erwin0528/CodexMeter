@@ -436,7 +436,7 @@
     <string name="home_trend_detail_calls">%1$d 次</string>
     <string name="app_update_install_ready_title">更新已就緒</string>
     <string name="app_update_install_ready_text">點這裡安裝新版 CodexMeter</string>
-    <string name="home_mascot_hint">點貓摸頭 · 雙擊加菜 · 左右滑嚕下巴 · 長按呼嚕 · 點這行字看碗</string>
+    <string name="home_mascot_hint">點台詞看碗況 · 長按呼嚕</string>
     <string name="home_mascot_pet_hungry_1">摸我不如去餵碗啦</string>
     <string name="home_mascot_pet_hungry_2">碗還滿滿的喵，下班快用</string>
     <string name="home_mascot_pet_relaxed_1">嗯…這節奏剛剛好</string>
@@ -472,4 +472,7 @@
     <string name="account_forecast_leftover">撐得到重置，預估還剩約 %1$d%%</string>
     <string name="account_forecast_exact">照這速度剛好用完</string>
     <string name="account_forecast_daily">每天可用約 %1$d%%</string>
+    <string name="home_updated_at_format">更新於 %1$s</string>
+    <string name="overview_widget_pool_format">Gemini 合計 %1$d%%</string>
+    <string name="overview_widget_pool_with_refill_format">Gemini 合計 %1$d%% · 下次補貨 %2$s</string>
 </resources>

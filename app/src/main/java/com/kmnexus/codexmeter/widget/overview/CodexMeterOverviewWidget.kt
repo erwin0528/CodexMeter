@@ -10,6 +10,8 @@ import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.glance.ColorFilter
+import androidx.glance.background
+import androidx.glance.appwidget.cornerRadius
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.Image
@@ -132,6 +134,13 @@ private fun OverviewContent(
                     AccountRow(context, row, now)
                 }
             }
+            // 所有帳號都放得下、底下還有空：補一條 Gemini 合計，不讓下面空一大塊
+            val pool = geminiPool(rows)
+            if (pool != null && hidden == 0 &&
+                OverviewLayout.hasRoomForSummary(heightDp, visible.size, context.resources.configuration.fontScale)
+            ) {
+                PoolSummary(context, pool, now)
+            }
         }
     }
 }
@@ -145,17 +154,42 @@ private fun Header(context: Context, rows: List<OverviewRow>, hiddenCount: Int, 
         val pick = UseItAdvisor.recommend(rows, now)
         if (pick != null) {
             val reset = pick.main?.resetAtEpochMillis?.let { formatReset(context, Instant.ofEpochMilli(it), now) }
-            Text(
-                text = if (reset != null) {
-                    context.getString(R.string.overview_widget_recommend_with_reset_format, pick.accountName, reset)
-                } else {
-                    context.getString(R.string.overview_widget_recommend_format, pick.accountName)
-                },
-                style = TextStyle(color = WidgetQuotaTone.Neutral.statusAccentProvider(), fontSize = 11.sp, fontWeight = FontWeight.Medium),
-                maxLines = 1,
-            )
+            // 膠囊底＋高明度字：放在花俏桌布上也一眼讀得到「現在用哪個」
+            Box(
+                modifier = GlanceModifier
+                    .padding(top = 2.dp)
+                    .background(RecommendPillBackground)
+                    .cornerRadius(10.dp)
+                    .padding(horizontal = 8.dp, vertical = 2.dp),
+            ) {
+                Text(
+                    text = if (reset != null) {
+                        context.getString(R.string.overview_widget_recommend_with_reset_format, pick.accountName, reset)
+                    } else {
+                        context.getString(R.string.overview_widget_recommend_format, pick.accountName)
+                    },
+                    style = TextStyle(color = RecommendPillText, fontSize = 12.sp, fontWeight = FontWeight.Bold),
+                    maxLines = 1,
+                )
+            }
         }
     }
+}
+
+@Suppress("FunctionNaming") // Compose 元件慣例用大寫開頭
+@Composable
+private fun PoolSummary(context: Context, pool: GeminiPool, now: Instant) {
+    val refill = pool.nextRefillEpochMillis?.let { formatReset(context, Instant.ofEpochMilli(it), now) }
+    Text(
+        text = if (refill != null) {
+            context.getString(R.string.overview_widget_pool_with_refill_format, pool.totalPercent, refill)
+        } else {
+            context.getString(R.string.overview_widget_pool_format, pool.totalPercent)
+        },
+        style = TextStyle(color = MutedText, fontSize = 12.sp, fontWeight = FontWeight.Medium),
+        maxLines = 1,
+        modifier = GlanceModifier.padding(top = OverviewLayout.ROW_GAP_DP.dp),
+    )
 }
 
 @Composable
@@ -221,21 +255,24 @@ private fun AccountRow(context: Context, row: OverviewRow, now: Instant) {
         )
         Spacer(modifier = GlanceModifier.width(12.dp))
         Column(modifier = GlanceModifier.defaultWeight()) {
-            Text(
-                text = row.accountName,
-                style = TextStyle(color = InkText, fontSize = 13.sp, fontWeight = FontWeight.Medium),
-                maxLines = 1,
-            )
-            if (row.needsAttention || main == null) {
-                // 需要重新登入或沒資料：直接寫狀態，比一個「--」清楚。
-                val tone = if (row.needsAttention) WidgetQuotaTone.Danger else WidgetQuotaTone.Neutral
+            // 第一行：名稱＋大字百分比＋節奏；第二行：重置時間與週額度。兩行都只准一行，字放大也不會被切掉。
+            Row(verticalAlignment = Alignment.Bottom) {
                 Text(
-                    text = context.getString(statusLabelFor(row)),
-                    style = TextStyle(color = tone.statusAccentProvider(), fontSize = 13.sp, fontWeight = FontWeight.Bold),
+                    text = row.accountName,
+                    style = TextStyle(color = InkText, fontSize = 13.sp, fontWeight = FontWeight.Bold),
                     maxLines = 1,
+                    modifier = GlanceModifier.padding(end = 6.dp, bottom = 3.dp),
                 )
-            } else {
-                Row(verticalAlignment = Alignment.Bottom) {
+                if (row.needsAttention || main == null) {
+                    // 需要重新登入或沒資料：直接寫狀態，比一個「--」清楚。
+                    val tone = if (row.needsAttention) WidgetQuotaTone.Danger else WidgetQuotaTone.Neutral
+                    Text(
+                        text = context.getString(statusLabelFor(row)),
+                        style = TextStyle(color = tone.statusAccentProvider(), fontSize = 13.sp, fontWeight = FontWeight.Bold),
+                        maxLines = 1,
+                        modifier = GlanceModifier.padding(bottom = 3.dp),
+                    )
+                } else {
                     Text(
                         text = main.valueText(context),
                         style = TextStyle(color = paceText(pace, main.tone), fontSize = 20.sp, fontWeight = FontWeight.Bold),
@@ -244,12 +281,18 @@ private fun AccountRow(context: Context, row: OverviewRow, now: Instant) {
                     paceLabelRes(pace)?.let { label ->
                         Text(
                             text = context.getString(label),
-                            style = TextStyle(color = paceText(pace, main.tone), fontSize = 11.sp, fontWeight = FontWeight.Medium),
-                            modifier = GlanceModifier.padding(start = 4.dp, bottom = 2.dp),
+                            style = TextStyle(
+                                color = paceText(pace, main.tone),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                            ),
+                            modifier = GlanceModifier.padding(start = 4.dp, bottom = 3.dp),
                             maxLines = 1,
                         )
                     }
                 }
+            }
+            if (main != null && !row.needsAttention) {
                 Text(
                     text = cellDetail(context, row, now),
                     style = TextStyle(color = MutedText, fontSize = 12.sp),
@@ -260,7 +303,7 @@ private fun AccountRow(context: Context, row: OverviewRow, now: Instant) {
     }
 }
 
-/** 第三行：「18:26 重置 · 7 天 89%」；資料可能過期時補狀態，避免把舊數字當現在。 */
+/** 第二行：「18:26 重置 · 7d 89%」；資料可能過期時補狀態，避免把舊數字當現在。 */
 private fun cellDetail(context: Context, row: OverviewRow, now: Instant): String {
     val main = row.main ?: return ""
     val parts = buildList {
@@ -271,7 +314,9 @@ private fun cellDetail(context: Context, row: OverviewRow, now: Instant): String
             add(
                 context.getString(
                     R.string.overview_widget_secondary_format,
-                    compactLabel(context.getString(quotaWindowLabelRes(second.windowId, second.limitWindowSeconds))),
+                    shortWindowCode(second.limitWindowSeconds) ?: compactLabel(
+                        context.getString(quotaWindowLabelRes(second.windowId, second.limitWindowSeconds)),
+                    ),
                     second.valueText(context),
                 ),
             )
@@ -309,7 +354,7 @@ private fun paceRingColor(pace: QuotaPace): Int = when (pace) {
 }
 
 private fun paceText(pace: QuotaPace, fallback: WidgetQuotaTone) = when (pace) {
-    QuotaPace.UnderUsing -> ColorProvider(day = Color(0xFF185FA5), night = Color(0xFF85B7EB))
+    QuotaPace.UnderUsing -> ColorProvider(day = Color(0xFF185FA5), night = Color(BRIGHT_SKY_BLUE))
     QuotaPace.OnTrack -> ColorProvider(day = Color(0xFF0F6E56), night = Color(0xFF5DCAA5))
     QuotaPace.OverUsing -> ColorProvider(day = Color(0xFF854F0B), night = Color(0xFFEF9F27))
     QuotaPace.Depleted -> ColorProvider(day = Color(0xFFA32D2D), night = Color(0xFFF09595))
@@ -355,7 +400,7 @@ private fun OverviewField.valueText(context: Context): String =
 private fun formatReset(context: Context, reset: Instant, now: Instant): String {
     val locale = context.resources.configuration.locales[0]
     val zone = ZoneId.systemDefault()
-    val skeleton = if (isSameLocalDay(reset, now, zone)) "jm" else "Mdjm"
+    val skeleton = if (isSameLocalDay(reset, now, zone)) "Hm" else "MdHm"
     val pattern = DateFormat.getBestDateTimePattern(locale, skeleton)
     return DateTimeFormatter.ofPattern(pattern, locale).withZone(zone).format(reset)
 }
@@ -368,4 +413,12 @@ private fun launchIntent(context: Context): Intent =
 
 // 與單帳號小工具同一組配色（淺色／深色），兩種小工具並排時看起來是同一套。
 private val InkText = ColorProvider(day = Color(0xFF151821), night = Color(0xFFFFFFFF))
+// 「現在用」膠囊：淺色模式淡藍底深藍字，深色模式黑色半透明底＋淺冰藍字
+private const val DEEP_BLUE = 0xFF185FA5
+private const val DEEP_BLUE_TINT = 0x1F185FA5
+private const val SHADE_40 = 0x66000000
+private const val ICE_BLUE = 0xFFB8E3FF
+private const val BRIGHT_SKY_BLUE = 0xFF8FD3FF
+private val RecommendPillBackground = ColorProvider(day = Color(DEEP_BLUE_TINT), night = Color(SHADE_40))
+private val RecommendPillText = ColorProvider(day = Color(DEEP_BLUE), night = Color(ICE_BLUE))
 private val MutedText = ColorProvider(day = Color(0x8C151821), night = Color(0xE6FFFFFF))

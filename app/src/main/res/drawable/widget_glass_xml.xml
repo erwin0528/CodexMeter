@@ -23,7 +23,7 @@
         </shape>
     </item>
 
-    <!-- Frosted body: cool-white frosted glass, diagonal gradient. start rgba(244,249,255,0.74)->#BCF4F9FF, end rgba(228,239,252,0.66)->#A8E4EFFC -->
+    <!-- Frosted body: cool-white frosted glass, diagonal gradient. start rgba(244,249,255,0.85)->#D9F4F9FF, end rgba(228,239,252,0.80)->#CCE4EFFC（提高不透明度：花俏桌布上字才讀得清楚） -->
     <item
         android:left="3dp"
         android:right="3dp"
@@ -32,8 +32,8 @@
         <shape android:shape="rectangle">
             <gradient
                 android:angle="315"
-                android:startColor="#BCF4F9FF"
-                android:endColor="#A8E4EFFC"
+                android:startColor="#D9F4F9FF"
+                android:endColor="#CCE4EFFC"
                 android:type="linear" />
             <corners android:radius="24dp" />
         </shape>

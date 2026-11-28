@@ -94,12 +94,15 @@ object OverviewRowsCodec {
 /** 版面尺寸計算（dp），抽出來方便單元測試。 */
 object OverviewLayout {
     const val PADDING_DP = 10
-    const val HEADER_HEIGHT_DP = 46
+    const val HEADER_HEIGHT_DP = 50
     const val RING_DP = 64
     const val ROW_GAP_DP = 6
 
-    /** 三行字的高度（13＋20＋12sp 含行距）；實機量約 66dp，會隨系統字體放大。 */
-    private const val TEXT_BLOCK_DP = 66
+    /** 兩行字的高度（名稱與 20sp 百分比同一行＋12sp 細節）；約 48dp，會隨系統字體放大。 */
+    private const val TEXT_BLOCK_DP = 48
+
+    /** 底部摘要列（Gemini 合計）需要的高度。 */
+    const val SUMMARY_DP = 22
 
     /** 「更新中…」最多顯示這麼久；網路斷掉等情況下不會永遠卡著。 */
     private const val REFRESHING_TIMEOUT_MILLIS = 3 * 60 * 1000L
@@ -108,6 +111,13 @@ object OverviewLayout {
     fun rowCapacity(heightDp: Float, fontScale: Float = 1f): Int {
         val rowHeight = maxOf(RING_DP.toFloat(), TEXT_BLOCK_DP * fontScale.coerceAtLeast(1f)) + ROW_GAP_DP
         return ((heightDp - PADDING_DP * 2 - HEADER_HEIGHT_DP) / rowHeight).toInt().coerceAtLeast(1)
+    }
+
+    /** 所有帳號都放得下、底下還有空間時，才在最底下補一條摘要列。 */
+    fun hasRoomForSummary(heightDp: Float, rowCount: Int, fontScale: Float = 1f): Boolean {
+        val rowHeight = maxOf(RING_DP.toFloat(), TEXT_BLOCK_DP * fontScale.coerceAtLeast(1f)) + ROW_GAP_DP
+        val used = PADDING_DP * 2 + HEADER_HEIGHT_DP + rowHeight * rowCount
+        return heightDp - used >= SUMMARY_DP * fontScale.coerceAtLeast(1f)
     }
 
     fun isRefreshing(sinceEpochMillis: Long?, now: java.time.Instant): Boolean =
@@ -124,3 +134,31 @@ fun isSameLocalDay(instant: Instant, now: Instant, zone: ZoneId): Boolean =
 /** 需要使用者處理的狀態，在列的右側用文字取代百分比。 */
 val OverviewRow.needsAttention: Boolean
     get() = status == WidgetQuotaStatus.AuthRequired
+
+/** 兩個以上 Gemini 帳號時的合計：主要額度（5 小時）剩餘 % 加總，以及最早的補貨（重置）時間。 */
+data class GeminiPool(val totalPercent: Int, val accountCount: Int, val nextRefillEpochMillis: Long?)
+
+fun geminiPool(rows: List<OverviewRow>): GeminiPool? {
+    val gemini = rows.filter {
+        it.providerId == "gemini" &&
+            it.status == WidgetQuotaStatus.Fresh &&
+            it.main?.percent != null &&
+            !it.main.isBalance
+    }
+    if (gemini.size < 2) return null
+    return GeminiPool(
+        totalPercent = gemini.sumOf { it.main?.percent ?: 0 },
+        accountCount = gemini.size,
+        nextRefillEpochMillis = gemini.mapNotNull { it.main?.resetAtEpochMillis }.minOrNull(),
+    )
+}
+
+/** 小工具副標用的極短視窗名：一週＝7d、5 小時＝5h，其他用原本的名稱。 */
+fun shortWindowCode(limitWindowSeconds: Int?): String? = when (limitWindowSeconds) {
+    WEEK_SECONDS -> "7d"
+    FIVE_HOURS_SECONDS -> "5h"
+    else -> null
+}
+
+private const val WEEK_SECONDS = 604_800
+private const val FIVE_HOURS_SECONDS = 18_000

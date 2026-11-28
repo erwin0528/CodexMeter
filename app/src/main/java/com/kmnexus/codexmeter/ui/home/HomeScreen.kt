@@ -157,8 +157,9 @@ fun HomeScreen(
         )
 
         if (uiState.contentStatus != HomeContentStatus.Unauthenticated && uiState.accountChoices.size > 1) {
-            HomeAccountSelector(
-                uiState = uiState,
+            HomeAccountPills(
+                choices = uiState.accountChoices,
+                selectedId = uiState.account?.localAccountId,
                 onAccountSelected = onAccountSelected,
             )
         }
@@ -169,7 +170,6 @@ fun HomeScreen(
                 onLoginClick = onLoginClick,
             )
         } else {
-            HomeHeroGlassLayer(uiState = uiState)
             val mascotState = HomeMascotMoodResolver.resolve(uiState.contentStatus, uiState.quotaCards, Instant.now())
             HomeMascotCard(
                 state = mascotState,
@@ -191,9 +191,12 @@ fun HomeScreen(
                     HomeLoadingCard(loading = loading)
                 }
             }
-            HomeRefreshCard(
-                uiState = uiState,
-            )
+            // 正常時「更新於幾點」已經放在標題底下，這張卡只在出錯時才出來說明原因
+            if (uiState.errorMessageResId != null) {
+                HomeRefreshCard(
+                    uiState = uiState,
+                )
+            }
             if (uiState.primaryAction != null || uiState.secondaryAction != null) {
                 HomeActionCard(
                     uiState = uiState,
@@ -226,8 +229,13 @@ private fun HomeHeader(
                     style = CodexMeterTypography.current.display,
                     color = MaterialTheme.colorScheme.onBackground,
                 )
+                val lastSuccess = uiState.refresh.lastSuccessfulRefreshAt
                 Text(
-                    text = stringResource(uiState.statusDescriptionResId),
+                    text = if (uiState.errorMessageResId == null && lastSuccess != null) {
+                        stringResource(R.string.home_updated_at_format, formattedInstant(lastSuccess))
+                    } else {
+                        stringResource(uiState.statusDescriptionResId)
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -242,96 +250,6 @@ private fun HomeHeader(
     }
 }
 
-/**
- * Compact default-account switcher: a pill showing the viewed account that expands into a
- * dropdown of every local account. Picking one is the single "default account" write — quota
- * cards, trend and pull-to-refresh all follow it.
- */
-@Composable
-private fun HomeAccountSelector(
-    uiState: HomeUiState,
-    onAccountSelected: (ProviderId, LocalAccountId) -> Unit,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val selectedId = uiState.account?.localAccountId
-    androidx.compose.foundation.layout.Box {
-        Row(
-            modifier = Modifier
-                .clip(CodexMeterShapes.pill)
-                .background(CodexMeterTheme.colors.surface)
-                .clickable { expanded = true }
-                .padding(
-                    horizontal = CodexMeterSpacing.md,
-                    vertical = CodexMeterSpacing.sm,
-                ),
-            horizontalArrangement = Arrangement.spacedBy(CodexMeterSpacing.sm),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = uiState.account?.displayName
-                    ?: stringResource(R.string.home_account_selector_placeholder),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.widthIn(max = 160.dp),
-            )
-            Icon(
-                painter = painterResource(R.drawable.ic_chevron_down),
-                contentDescription = stringResource(R.string.home_account_selector),
-                tint = CodexMeterTheme.colors.accent,
-                modifier = Modifier.size(16.dp),
-            )
-        }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-        ) {
-            uiState.accountChoices.forEach { choice ->
-                val selected = choice.localAccountId == selectedId
-                DropdownMenuItem(
-                    text = {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(CodexMeterSpacing.sm),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            HomeAccountAvatarBadge(
-                                providerIconResId = choice.providerIconResId,
-                                avatarInitial = choice.avatarInitial,
-                                avatarColorKey = choice.avatarColorKey,
-                                size = 24.dp,
-                                iconSize = 14.dp,
-                                initialStyle = MaterialTheme.typography.labelSmall,
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = choice.displayName,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                            if (selected) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_action_done),
-                                    contentDescription = null,
-                                    tint = CodexMeterTheme.colors.accent,
-                                    modifier = Modifier.size(16.dp),
-                                )
-                            }
-                        }
-                    },
-                    onClick = {
-                        expanded = false
-                        if (!selected) {
-                            onAccountSelected(choice.providerId, choice.localAccountId)
-                        }
-                    },
-                )
-            }
-        }
-    }
-}
 
 @Composable
 private fun HomeRefreshIconButton(
