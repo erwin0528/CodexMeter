@@ -421,7 +421,7 @@
     <string name="account_quota_reset_not_started">Timer not started yet</string>
     <string name="home_mascot_name">Quota cat</string>
     <string name="home_mascot_hungry">The bowl is still full and about to expire. Go use it!</string>
-    <string name="home_mascot_relaxed">Right on pace. Keep it up.</string>
+    <string name="home_mascot_relaxed">So tasty, keep eating. Meow meow meow.</string>
     <string name="home_mascot_stuffed">Eating too fast. Slow down a little.</string>
     <string name="home_mascot_ate_all">All eaten up!</string>
     <string name="home_mascot_ate_all_refill">All eaten up! Refills at %1$s</string>

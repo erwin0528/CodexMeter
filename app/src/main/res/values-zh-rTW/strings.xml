@@ -421,7 +421,7 @@
     <string name="account_badge_default">預設</string>
     <string name="home_mascot_name">額度貓</string>
     <string name="home_mascot_hungry">碗還很滿，快過期了喵</string>
-    <string name="home_mascot_relaxed">節奏剛好，繼續保持</string>
+    <string name="home_mascot_relaxed">好吃一直吃，喵喵喵</string>
     <string name="home_mascot_stuffed">吃太快啦，慢一點</string>
     <string name="home_mascot_ate_all">吃光光！</string>
     <string name="home_mascot_ate_all_refill">吃光光！%1$s 補貨</string>
