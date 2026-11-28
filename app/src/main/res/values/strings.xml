@@ -436,7 +436,7 @@
     <string name="home_trend_detail_calls">%1$d calls</string>
     <string name="app_update_install_ready_title">Update ready to install</string>
     <string name="app_update_install_ready_text">Tap to install the new version of CodexMeter</string>
-    <string name="home_mascot_hint">Tap to pet · tap the bowl to check · hold to make it purr</string>
+    <string name="home_mascot_hint">Tap: pet · double-tap: treat · swipe: chin rub · hold: purr · tap this text: check bowl</string>
     <string name="home_mascot_pet_hungry_1">Petting me won\'t empty the bowl, go use it!</string>
     <string name="home_mascot_pet_hungry_2">The bowl is still full, use it after work</string>
     <string name="home_mascot_pet_relaxed_1">Mmm… this pace is just right</string>
@@ -454,4 +454,18 @@
     <string name="home_mascot_bowl_reset">%1$d%% left in the bowl, refills %2$s</string>
     <string name="home_mascot_bowl_empty">Bowl is empty, nothing to check</string>
     <string name="home_mascot_pet_enough">That\'s enough petting today, go use your quota!</string>
+    <string name="home_mascot_greet_after_work">Off work! Long day on site, which bowl first tonight?</string>
+    <string name="home_mascot_greet_late_night">It\'s late, go to sleep. The rest can wait till tomorrow</string>
+    <string name="home_mascot_greet_sunday">Sunday off. Use it only if you feel like it</string>
+    <string name="home_mascot_chin_1">Mmm, right there, a bit more</string>
+    <string name="home_mascot_chin_2">So comfy I almost forgot to watch your quota</string>
+    <string name="home_mascot_chin_3">Okay, save those hands for prompting</string>
+    <string name="home_mascot_treat_1">That one\'s a snack. %1$d%% left in the bowl</string>
+    <string name="home_mascot_treat_2">Crunch crunch… %1$d%% still in the bowl</string>
+    <string name="home_mascot_treat_3">Thanks! %1$d%% left, it\'s yours to finish tonight</string>
+    <string name="home_mascot_treat_unknown">Crunch crunch… still counting what\'s left</string>
+    <string name="home_mascot_switched">Looking at %1$s\'s bowl now, %2$d%% left</string>
+    <string name="home_mascot_switched_unknown">Looking at %1$s\'s bowl now</string>
+    <string name="home_mascot_ate_some">That counted! Just used %1$d%%</string>
+    <string name="home_mascot_refilled">A fresh bowl just refilled, take your time</string>
 </resources>

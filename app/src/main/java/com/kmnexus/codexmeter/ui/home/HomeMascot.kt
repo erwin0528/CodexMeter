@@ -1,7 +1,9 @@
 package com.kmnexus.codexmeter.ui.home
 
 import androidx.annotation.StringRes
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -9,6 +11,7 @@ import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -18,8 +21,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -47,6 +55,7 @@ import com.kmnexus.codexmeter.widget.overview.QuotaPace
 import com.kmnexus.codexmeter.widget.overview.QuotaPaceCalculator
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalDateTime
 
 /**
  * 額度貓：額度＝碗裡的飼料，目標是重置前吃光光。
@@ -117,21 +126,26 @@ object HomeMascotMoodResolver {
     }
 }
 
+/**
+ * 額度貓卡片。bowl 是「現在看的是哪個帳號的碗」，用來偵測切帳號與刷新前後的變化；
+ * now 由外面傳入方便測試，預設用手機目前時間判斷時段。
+ */
+@Suppress("FunctionNaming") // Compose 元件慣例用大寫開頭
 @Composable
-internal fun HomeMascotCard(state: HomeMascotState) {
-    val interaction = rememberMascotInteraction(state.mood)
+internal fun HomeMascotCard(
+    state: HomeMascotState,
+    bowl: MascotBowlSnapshot? = null,
+    now: LocalDateTime = LocalDateTime.now(),
+) {
+    val interaction = rememberMascotInteraction()
     val moodLine = if (state.mood == HomeMascotMood.AteAll && state.refillAt != null) {
         stringResource(R.string.home_mascot_ate_all_refill, formattedInstant(state.refillAt))
     } else {
         stringResource(state.mood.lineResId)
     }
-    val reactionLine = when (interaction.reaction) {
-        HomeMascotReaction.Pet -> HomeMascotChatter.petLine(state.mood, interaction.petCount)
-        HomeMascotReaction.Bowl -> HomeMascotChatter.bowlLine(state, state.resetAt?.let { formattedInstant(it) })
-        HomeMascotReaction.Purr -> HomeMascotLine(R.string.home_mascot_purr)
-        HomeMascotReaction.None -> null
-    }
-    val line = reactionLine?.let { reactionText(it) } ?: moodLine
+    val bowlLine = HomeMascotChatter.bowlLine(state, state.resetAt?.let { formattedInstant(it) })
+    MascotAutoTalk(interaction, bowl, now)
+    val line = interaction.line?.let { reactionText(it) } ?: moodLine
     QmLiquidGlassSurface(
         modifier = Modifier.fillMaxWidth(),
         role = LiquidGlassSurfaceRole.Card,
@@ -146,32 +160,74 @@ internal fun HomeMascotCard(state: HomeMascotState) {
             QuotaCat(
                 mood = state.mood,
                 interaction = interaction,
+                sleepy = HomeMascotChatter.isLateNight(now),
                 modifier = Modifier
-                    .size(72.dp)
+                    .size(80.dp)
                     .semantics { contentDescription = line }
-                    .mascotGestures(interaction),
+                    .mascotGestures(
+                        interaction = interaction,
+                        onPet = { interaction.pet { count -> HomeMascotChatter.petLine(state.mood, count) } },
+                        onTreat = {
+                            interaction.treat { count -> HomeMascotChatter.treatLine(count, state.remainingPercent) }
+                        },
+                        onPurr = { interaction.purr(HomeMascotLine(R.string.home_mascot_purr)) },
+                        onChinRelease = { interaction.chinRelease(HomeMascotChatter::chinLine) },
+                    ),
             )
-            Column(verticalArrangement = Arrangement.spacedBy(CodexMeterSpacing.xs)) {
-                Text(
-                    text = stringResource(R.string.home_mascot_name),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = CodexMeterTheme.colors.secondary,
-                    maxLines = 1,
-                )
-                Text(
-                    text = line,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = CodexMeterTheme.colors.primary,
-                    maxLines = 2,
-                )
-                Text(
-                    text = stringResource(R.string.home_mascot_hint),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = CodexMeterTheme.colors.secondary.copy(alpha = 0.7f),
-                    maxLines = 2,
-                )
-            }
+            // 右邊整塊文字可點：報碗裡剩多少、幾點補貨
+            MascotTextColumn(
+                line = line,
+                modifier = Modifier.weight(1f),
+                onClick = { interaction.say(HomeMascotReaction.Bowl, bowlLine) },
+            )
         }
+    }
+}
+
+@Suppress("FunctionNaming") // Compose 元件慣例用大寫開頭
+@Composable
+private fun MascotTextColumn(line: String, modifier: Modifier, onClick: () -> Unit) {
+    Column(
+        modifier = modifier.clickable(onClick = onClick),
+        verticalArrangement = Arrangement.spacedBy(CodexMeterSpacing.xs),
+    ) {
+        Text(
+            text = stringResource(R.string.home_mascot_name),
+            style = MaterialTheme.typography.labelSmall,
+            color = CodexMeterTheme.colors.secondary,
+            maxLines = 1,
+        )
+        Text(
+            text = line,
+            style = MaterialTheme.typography.titleSmall,
+            color = CodexMeterTheme.colors.primary,
+            maxLines = 2,
+        )
+        Text(
+            text = stringResource(R.string.home_mascot_hint),
+            style = MaterialTheme.typography.labelSmall,
+            color = CodexMeterTheme.colors.secondary.copy(alpha = 0.7f),
+            maxLines = 2,
+        )
+    }
+}
+
+/** 自己開口的時機：第一次出現時打招呼；之後碗變了（切帳號、刷新）就講一句。 */
+@Suppress("FunctionNaming") // Compose 元件慣例用大寫開頭
+@Composable
+private fun MascotAutoTalk(interaction: MascotInteraction, bowl: MascotBowlSnapshot?, now: LocalDateTime) {
+    var greeted by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (!greeted) {
+            greeted = true
+            HomeMascotChatter.greetingLine(now)?.let { interaction.say(HomeMascotReaction.Talk, it) }
+        }
+    }
+    var lastBowl by remember { mutableStateOf<MascotBowlSnapshot?>(null) }
+    LaunchedEffect(bowl) {
+        if (bowl == null) return@LaunchedEffect
+        HomeMascotChatter.changeLine(lastBowl, bowl)?.let { interaction.say(HomeMascotReaction.Talk, it) }
+        lastBowl = bowl
     }
 }
 
@@ -180,6 +236,8 @@ private class CatMotion(val tail: State<Float>, val blink: State<Float>, val bob
 
 @Composable
 private fun rememberCatMotion(enabled: Boolean): CatMotion {
+    // 系統關掉動畫時根本不建立無限動畫，免得背景一直重算浪費電
+    if (!enabled) return remember { stillCatMotion() }
     val transition = rememberInfiniteTransition(label = "quota-cat")
     val tail = transition.animateFloat(
         initialValue = -1f,
@@ -217,61 +275,66 @@ private fun rememberCatMotion(enabled: Boolean): CatMotion {
         ),
         label = "bob",
     )
-    return remember(enabled, tail, blink, bob) {
-        if (enabled) {
-            CatMotion(tail, blink, bob)
-        } else {
-            val still = object : State<Float> { override val value = 0f }
-            val open = object : State<Float> { override val value = 1f }
-            CatMotion(still, open, still)
-        }
-    }
+    return remember(tail, blink, bob) { CatMotion(tail, blink, bob) }
+}
+
+private fun stillCatMotion(): CatMotion {
+    val still = object : State<Float> { override val value = 0f }
+    val open = object : State<Float> { override val value = 1f }
+    return CatMotion(still, open, still)
 }
 
 /** 原創線條貓，坐在飼料碗左邊。座標以 64×64 為底再縮放。 */
+@Suppress("FunctionNaming") // Compose 元件慣例用大寫開頭
 @Composable
-private fun QuotaCat(mood: HomeMascotMood, interaction: MascotInteraction, modifier: Modifier = Modifier) {
+private fun QuotaCat(
+    mood: HomeMascotMood,
+    interaction: MascotInteraction,
+    sleepy: Boolean,
+    modifier: Modifier = Modifier,
+) {
     val colors = CodexMeterTheme.colors
     val ink = colors.primary
     val bodyFill = colors.surface.copy(alpha = 0.55f)
-    val foodColor = when (mood) {
+    val targetFoodColor = when (mood) {
         HomeMascotMood.Hungry -> colors.accent
         HomeMascotMood.Relaxed -> colors.success
         HomeMascotMood.Stuffed -> colors.warning
         HomeMascotMood.AteAll -> colors.danger
         HomeMascotMood.Locked, HomeMascotMood.Waiting -> colors.secondary
     }
+    // 切帳號或刷新時，碗裡的飼料高度和顏色慢慢流過去，不要一下跳
+    val foodColor by animateColorAsState(targetFoodColor, label = "food-color")
+    val bowlFill by animateFloatAsState(mood.bowlFill, label = "bowl-fill")
     val motion = rememberCatMotion(rememberCodexMeterAnimatorsEnabled())
 
     Canvas(modifier = modifier) {
         val unit = size.minDimension / 64f
         scale(unit, unit, pivot = Offset.Zero) {
             val stroke = Stroke(width = 1.8f, cap = StrokeCap.Round)
-            val purring = interaction.reaction == HomeMascotReaction.Purr
+            val reaction = interaction.reaction
+            val purring = reaction == HomeMascotReaction.Purr
+            val idleAsleep = sleepy && reaction == HomeMascotReaction.None
             // 摸頭時整隻貓往上跳一下；呼嚕時尾巴甩得比較大
-            translate(top = -5f * interaction.hop.value) {
-                drawTail(ink, stroke, swing = motion.tail.value * if (purring) 1.8f else 1f)
+            translate(top = -HOP_HEIGHT * interaction.hop) {
+                drawTail(ink, stroke, swing = motion.tail.value * if (purring) PURR_TAIL_SWING else 1f)
                 drawBody(ink, bodyFill, stroke)
                 drawHead(
-                    // 呼嚕時一律瞇眼
-                    if (purring) HomeMascotMood.Relaxed else mood,
+                    mood,
                     ink,
                     bodyFill,
                     stroke,
-                    blink = motion.blink.value,
+                    blink = if (idleAsleep) 0f else motion.blink.value,
+                    // 呼嚕、嚕下巴時瞇眼
+                    squint = purring || reaction == HomeMascotReaction.Chin,
+                    extraTilt = interaction.tilt * CHIN_TILT_DEGREES,
                 )
             }
-            if (interaction.reaction == HomeMascotReaction.Pet) {
-                drawHeart(colors.danger, rise = interaction.effect.value)
-            }
-            if (purring) drawPurrWaves(ink, spread = interaction.effect.value)
-            drawBowl(mood, ink, foodColor, stroke)
-            when (mood) {
-                HomeMascotMood.Hungry -> drawPaw(ink, bodyFill, stroke, reach = motion.bob.value)
-                HomeMascotMood.Stuffed -> drawBubble(ink, grow = motion.bob.value)
-                HomeMascotMood.AteAll -> drawSparkles(foodColor, twinkle = motion.tail.value)
-                else -> Unit
-            }
+            drawReactionOverlay(reaction, interaction.effect, ink, colors.danger)
+            if (idleAsleep) drawSleepyZ(ink, drift = (motion.tail.value + 1f) / 2f)
+            drawBowl(mood, bowlFill, ink, foodColor, stroke)
+            if (reaction == HomeMascotReaction.Treat) drawTreat(foodColor, ink, fall = interaction.effect)
+            drawMoodDecoration(mood, motion, ink, bodyFill, foodColor)
         }
     }
 }
@@ -298,9 +361,17 @@ private fun DrawScope.drawBody(ink: Color, fill: Color, stroke: Stroke) {
     drawPath(body, ink, style = stroke)
 }
 
-private fun DrawScope.drawHead(mood: HomeMascotMood, ink: Color, fill: Color, stroke: Stroke, blink: Float) {
-    // 登入失效時歪頭
-    val tilt = if (mood == HomeMascotMood.Locked) -12f else 0f
+private fun DrawScope.drawHead(
+    mood: HomeMascotMood,
+    ink: Color,
+    fill: Color,
+    stroke: Stroke,
+    blink: Float,
+    squint: Boolean = false,
+    extraTilt: Float = 0f,
+) {
+    // 登入失效時歪頭；嚕下巴時跟著手指再歪
+    val tilt = (if (mood == HomeMascotMood.Locked) -12f else 0f) + extraTilt
     rotate(degrees = tilt, pivot = Offset(20f, 24f)) {
         val head = Path().apply {
             moveTo(10f, 30f)
@@ -314,12 +385,13 @@ private fun DrawScope.drawHead(mood: HomeMascotMood, ink: Color, fill: Color, st
         }
         drawPath(head, fill)
         drawPath(head, ink, style = stroke)
-        val happy = mood == HomeMascotMood.Relaxed || mood == HomeMascotMood.AteAll
+        val happy = squint || mood == HomeMascotMood.Relaxed || mood == HomeMascotMood.AteAll
         if (happy) {
             // 瞇眼：向上彎的弧線
             drawArc(ink, 180f, 180f, false, Offset(14f, 23f), Size(4f, 3f), style = stroke)
             drawArc(ink, 180f, 180f, false, Offset(22f, 23f), Size(4f, 3f), style = stroke)
         } else {
+            // blink 0 = 睡著閉眼（只剩一條線）
             val eyeHeight = 3f * blink.coerceIn(0.1f, 1f)
             drawOval(ink, Offset(15f, 25.5f - eyeHeight / 2), Size(2.4f, eyeHeight))
             drawOval(ink, Offset(22.6f, 25.5f - eyeHeight / 2), Size(2.4f, eyeHeight))
@@ -330,7 +402,7 @@ private fun DrawScope.drawHead(mood: HomeMascotMood, ink: Color, fill: Color, st
     if (mood == HomeMascotMood.Locked) drawQuestionMark(ink, stroke)
 }
 
-private fun DrawScope.drawBowl(mood: HomeMascotMood, ink: Color, food: Color, stroke: Stroke) {
+private fun DrawScope.drawBowl(mood: HomeMascotMood, fill: Float, ink: Color, food: Color, stroke: Stroke) {
     val bowl = Path().apply {
         moveTo(36f, 50f)
         lineTo(62f, 50f)
@@ -338,9 +410,9 @@ private fun DrawScope.drawBowl(mood: HomeMascotMood, ink: Color, food: Color, st
         cubicTo(41f, 60f, 37f, 57f, 36f, 50f)
         close()
     }
-    if (mood.bowlFill > 0f) {
+    if (fill > 0f) {
         // 飼料從碗口往上堆，最高堆出碗口 4 單位
-        val top = 50f - 4f * mood.bowlFill
+        val top = 50f - 4f * fill
         val pile = Path().apply {
             moveTo(38f, 50f)
             cubicTo(41f, top, 57f, top, 60f, 50f)
@@ -422,4 +494,78 @@ private fun reactionText(line: HomeMascotLine): String = when (line.args.size) {
     0 -> stringResource(line.resId)
     1 -> stringResource(line.resId, line.args[0])
     else -> stringResource(line.resId, line.args[0], line.args[1])
+}
+
+private const val HOP_HEIGHT = 5f
+private const val PURR_TAIL_SWING = 1.8f
+private const val CHIN_TILT_DEGREES = 10f
+private const val TREAT_START_X = 58f
+private const val TREAT_START_Y = 30f
+private const val TREAT_END_X = 49f
+private const val TREAT_END_Y = 47f
+private const val TREAT_ARC = 8f
+
+private val pawStroke = Stroke(width = 1.8f, cap = StrokeCap.Round)
+
+/** 各心情的小動作：餓了拍碗、吃太快冒泡泡、吃光光閃星星。 */
+private fun DrawScope.drawMoodDecoration(
+    mood: HomeMascotMood,
+    motion: CatMotion,
+    ink: Color,
+    bodyFill: Color,
+    food: Color,
+) {
+    when (mood) {
+        HomeMascotMood.Hungry -> drawPaw(ink, bodyFill, pawStroke, reach = motion.bob.value)
+        HomeMascotMood.Stuffed -> drawBubble(ink, grow = motion.bob.value)
+        HomeMascotMood.AteAll -> drawSparkles(food, twinkle = motion.tail.value)
+        else -> Unit
+    }
+}
+
+/** 互動時疊在貓身上的效果：摸頭飄愛心、呼嚕冒聲波。 */
+private fun DrawScope.drawReactionOverlay(
+    reaction: HomeMascotReaction,
+    progress: Float,
+    ink: Color,
+    heart: Color,
+) {
+    when (reaction) {
+        HomeMascotReaction.Pet -> drawHeart(heart, rise = progress)
+        HomeMascotReaction.Purr -> drawPurrWaves(ink, spread = progress)
+        else -> Unit
+    }
+}
+
+/** 深夜閒著時頭上飄的 zZz，drift 0→1 慢慢往上。座標是畫布上的位置，不抽常數。 */
+@Suppress("MagicNumber")
+private fun DrawScope.drawSleepyZ(ink: Color, drift: Float) {
+    val color = ink.copy(alpha = 0.5f)
+    listOf(Triple(31f, 14f, 2.4f), Triple(36f, 9f, 3.2f)).forEach { (x, y0, w) ->
+        val y = y0 - 2f * drift
+        val z = Path().apply {
+            moveTo(x, y)
+            lineTo(x + w, y)
+            lineTo(x, y + w)
+            lineTo(x + w, y + w)
+        }
+        drawPath(z, color, style = Stroke(1.1f, cap = StrokeCap.Round))
+    }
+}
+
+/** 雙擊加菜：一顆飼料從右上拋物線掉進碗，掉完冒兩顆小星。fall 0→1。座標是畫布上的位置，不抽常數。 */
+@Suppress("MagicNumber")
+private fun DrawScope.drawTreat(food: Color, ink: Color, fall: Float) {
+    if (fall <= 0f || fall >= 1f) return
+    val x = TREAT_START_X + (TREAT_END_X - TREAT_START_X) * fall
+    val y = TREAT_START_Y + (TREAT_END_Y - TREAT_START_Y) * fall - TREAT_ARC * fall * (1f - fall) * 4f
+    drawCircle(food, radius = 1.8f, center = Offset(x, y))
+    drawCircle(ink, radius = 1.8f, center = Offset(x, y), style = Stroke(1f))
+    if (fall > 0.8f) {
+        val a = (fall - 0.8f) / 0.2f
+        listOf(Offset(43f, 42f), Offset(55f, 41f)).forEach { c ->
+            drawLine(food.copy(alpha = a), Offset(c.x - 1.5f, c.y), Offset(c.x + 1.5f, c.y), 1.2f, StrokeCap.Round)
+            drawLine(food.copy(alpha = a), Offset(c.x, c.y - 1.5f), Offset(c.x, c.y + 1.5f), 1.2f, StrokeCap.Round)
+        }
+    }
 }

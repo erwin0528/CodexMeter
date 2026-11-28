@@ -2,7 +2,11 @@ package com.kmnexus.codexmeter.ui.home
 
 import com.kmnexus.codexmeter.R
 import java.time.Instant
+import java.time.LocalDateTime
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HomeMascotChatterTest {
@@ -41,5 +45,59 @@ class HomeMascotChatterTest {
         val unknown = HomeMascotState(HomeMascotMood.Waiting)
         assertEquals(R.string.home_mascot_bowl_empty, HomeMascotChatter.bowlLine(empty, "21:00").resId)
         assertEquals(R.string.home_mascot_bowl_empty, HomeMascotChatter.bowlLine(unknown, null).resId)
+    }
+
+    // 2026-11-28 是週六、2026-11-29 是週日
+    private fun at(day: Int, hour: Int, minute: Int = 0) = LocalDateTime.of(2026, 11, day, hour, minute)
+
+    @Test
+    fun `saturday evening greets after work`() {
+        assertEquals(R.string.home_mascot_greet_after_work, HomeMascotChatter.greetingLine(at(28, 18, 30))?.resId)
+        assertNull(HomeMascotChatter.greetingLine(at(28, 20, 30)))
+    }
+
+    @Test
+    fun `late night wins over sunday and tells user to sleep`() {
+        assertEquals(R.string.home_mascot_greet_late_night, HomeMascotChatter.greetingLine(at(29, 0, 30))?.resId)
+        assertEquals(R.string.home_mascot_greet_late_night, HomeMascotChatter.greetingLine(at(28, 23, 0))?.resId)
+        assertTrue(HomeMascotChatter.isLateNight(at(28, 4, 59)))
+        assertFalse(HomeMascotChatter.isLateNight(at(28, 5, 0)))
+    }
+
+    @Test
+    fun `sunday daytime greets day off and weekday afternoon stays quiet`() {
+        assertEquals(R.string.home_mascot_greet_sunday, HomeMascotChatter.greetingLine(at(29, 14))?.resId)
+        assertNull(HomeMascotChatter.greetingLine(at(28, 14)))
+    }
+
+    @Test
+    fun `chin and treat lines rotate`() {
+        assertEquals(R.string.home_mascot_chin_1, HomeMascotChatter.chinLine(1).resId)
+        assertEquals(R.string.home_mascot_chin_1, HomeMascotChatter.chinLine(4).resId)
+        assertEquals(HomeMascotLine(R.string.home_mascot_treat_2, listOf(40)), HomeMascotChatter.treatLine(2, 40))
+        assertEquals(R.string.home_mascot_treat_unknown, HomeMascotChatter.treatLine(1, null).resId)
+    }
+
+    @Test
+    fun `switching account announces the new bowl`() {
+        val before = MascotBowlSnapshot("g1", "G1", 30)
+        val after = MascotBowlSnapshot("g2", "G2", 80)
+        assertEquals(
+            HomeMascotLine(R.string.home_mascot_switched, listOf("G2", 80)),
+            HomeMascotChatter.changeLine(before, after),
+        )
+    }
+
+    @Test
+    fun `refresh feedback only for real changes on same account`() {
+        val base = MascotBowlSnapshot("g1", "G1", 60)
+        assertEquals(
+            HomeMascotLine(R.string.home_mascot_ate_some, listOf(12)),
+            HomeMascotChatter.changeLine(base, base.copy(remainingPercent = 48)),
+        )
+        val refilled = HomeMascotChatter.changeLine(base.copy(remainingPercent = 5), base)
+        assertEquals(R.string.home_mascot_refilled, refilled?.resId)
+        assertNull(HomeMascotChatter.changeLine(base, base.copy(remainingPercent = 57)))
+        assertNull(HomeMascotChatter.changeLine(null, base))
     }
 }

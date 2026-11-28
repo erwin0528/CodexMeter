@@ -2,9 +2,18 @@ package com.kmnexus.codexmeter.ui.home
 
 import androidx.annotation.StringRes
 import com.kmnexus.codexmeter.R
+import java.time.DayOfWeek
+import java.time.LocalDateTime
+import java.time.LocalTime
 
-/** 跟額度貓互動的三種方式：點貓摸頭、點碗看剩多少、長按聽呼嚕。 */
-enum class HomeMascotReaction { None, Pet, Bowl, Purr }
+/**
+ * 額度貓當下在做的動作。台詞另外存，動作只決定畫面怎麼動：
+ * 摸頭跳一下、呼嚕瞇眼、嚕下巴歪頭、加菜丟飼料，其他（打招呼、報碗況）只換台詞。
+ */
+enum class HomeMascotReaction { None, Pet, Bowl, Purr, Chin, Treat, Talk }
+
+/** 用來比較「上次看到」跟「這次看到」的碗：哪個帳號、叫什麼、剩幾 %。 */
+data class MascotBowlSnapshot(val accountKey: String, val accountName: String, val remainingPercent: Int?)
 
 /** 一句台詞：字串資源加上要填進去的參數（剩餘 %、補貨時間）。 */
 data class HomeMascotLine(@get:StringRes val resId: Int, val args: List<Any> = emptyList())
@@ -42,4 +51,76 @@ object HomeMascotChatter {
             else -> HomeMascotLine(R.string.home_mascot_bowl, listOf(remaining))
         }
     }
+
+    /** 剛用掉多少才算「有吃有差」、一次漲多少才算「補貨」。 */
+    const val ATE_THRESHOLD = 5
+    const val REFILL_THRESHOLD = 20
+
+    private val afterWorkStart: LocalTime = LocalTime.parse("18:00")
+    private val afterWorkEnd: LocalTime = LocalTime.parse("20:30")
+    private val lateNightStart: LocalTime = LocalTime.parse("23:00")
+    private val lateNightEnd: LocalTime = LocalTime.parse("05:00")
+
+    /** 深夜（23:00～05:00）：貓會想睡，台詞也叫你去睡。 */
+    fun isLateNight(now: LocalDateTime): Boolean {
+        val time = now.toLocalTime()
+        return !time.isBefore(lateNightStart) || time.isBefore(lateNightEnd)
+    }
+
+    /**
+     * 打開 App 時的時段問候。深夜優先（就算週日也叫你睡），
+     * 下班時段只算週一到週六，週日白天講放假。其他時間不打招呼，直接講碗況。
+     */
+    fun greetingLine(now: LocalDateTime): HomeMascotLine? {
+        val time = now.toLocalTime()
+        return when {
+            isLateNight(now) -> HomeMascotLine(R.string.home_mascot_greet_late_night)
+            now.dayOfWeek == DayOfWeek.SUNDAY -> HomeMascotLine(R.string.home_mascot_greet_sunday)
+            !time.isBefore(afterWorkStart) && time.isBefore(afterWorkEnd) ->
+                HomeMascotLine(R.string.home_mascot_greet_after_work)
+            else -> null
+        }
+    }
+
+    private val chinLines = listOf(
+        R.string.home_mascot_chin_1,
+        R.string.home_mascot_chin_2,
+        R.string.home_mascot_chin_3,
+    )
+
+    /** 嚕下巴三句輪流講；count 從 1 開始。 */
+    fun chinLine(count: Int): HomeMascotLine = HomeMascotLine(chinLines[(count - 1).mod(chinLines.size)])
+
+    private val treatLines = listOf(
+        R.string.home_mascot_treat_1,
+        R.string.home_mascot_treat_2,
+        R.string.home_mascot_treat_3,
+    )
+
+    /** 雙擊加菜：順便報碗裡剩多少，三句輪流。 */
+    fun treatLine(count: Int, remainingPercent: Int?): HomeMascotLine {
+        if (remainingPercent == null) return HomeMascotLine(R.string.home_mascot_treat_unknown)
+        return HomeMascotLine(treatLines[(count - 1).mod(treatLines.size)], listOf(remainingPercent))
+    }
+
+    /**
+     * 比較前後兩次的碗：換帳號就報新碗；同一個帳號剩餘掉了 5% 以上誇你有在用，
+     * 漲了 20% 以上就是補貨了。變化太小不講話，免得每次刷新都吵。
+     */
+    fun changeLine(previous: MascotBowlSnapshot?, current: MascotBowlSnapshot): HomeMascotLine? {
+        val now = current.remainingPercent
+        val before = previous?.remainingPercent
+        return when {
+            previous == null -> null
+            previous.accountKey != current.accountKey -> switchedLine(current)
+            before == null || now == null -> null
+            before - now >= ATE_THRESHOLD -> HomeMascotLine(R.string.home_mascot_ate_some, listOf(before - now))
+            now - before >= REFILL_THRESHOLD -> HomeMascotLine(R.string.home_mascot_refilled)
+            else -> null
+        }
+    }
+
+    private fun switchedLine(current: MascotBowlSnapshot): HomeMascotLine =
+        current.remainingPercent?.let { HomeMascotLine(R.string.home_mascot_switched, listOf(current.accountName, it)) }
+            ?: HomeMascotLine(R.string.home_mascot_switched_unknown, listOf(current.accountName))
 }

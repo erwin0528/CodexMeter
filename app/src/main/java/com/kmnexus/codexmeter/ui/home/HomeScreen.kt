@@ -170,8 +170,12 @@ fun HomeScreen(
             )
         } else {
             HomeHeroGlassLayer(uiState = uiState)
+            val mascotState = HomeMascotMoodResolver.resolve(uiState.contentStatus, uiState.quotaCards, Instant.now())
             HomeMascotCard(
-                state = HomeMascotMoodResolver.resolve(uiState.contentStatus, uiState.quotaCards, Instant.now()),
+                state = mascotState,
+                bowl = uiState.account?.localAccountId?.let { id ->
+                    MascotBowlSnapshot(id.value, uiState.account.displayName, mascotState.remainingPercent)
+                },
             )
             if (uiState.quotaCards.isNotEmpty()) {
                 HomeQuotaCards(

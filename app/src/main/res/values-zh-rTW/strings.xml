@@ -436,7 +436,7 @@
     <string name="home_trend_detail_calls">%1$d 次</string>
     <string name="app_update_install_ready_title">更新已就緒</string>
     <string name="app_update_install_ready_text">點這裡安裝新版 CodexMeter</string>
-    <string name="home_mascot_hint">點我摸頭 · 點碗看剩多少 · 長按聽呼嚕</string>
+    <string name="home_mascot_hint">點貓摸頭 · 雙擊加菜 · 左右滑嚕下巴 · 長按呼嚕 · 點這行字看碗</string>
     <string name="home_mascot_pet_hungry_1">摸我不如去餵碗啦</string>
     <string name="home_mascot_pet_hungry_2">碗還滿滿的喵，下班快用</string>
     <string name="home_mascot_pet_relaxed_1">嗯…這節奏剛剛好</string>
@@ -454,4 +454,18 @@
     <string name="home_mascot_bowl_reset">碗裡還剩 %1$d%%，%2$s 補貨</string>
     <string name="home_mascot_bowl_empty">碗是空的，沒什麼好看喵</string>
     <string name="home_mascot_pet_enough">今天摸夠了喵，去用額度啦</string>
+    <string name="home_mascot_greet_after_work">下班啦！工地辛苦了喵，今晚先開哪一碗？</string>
+    <string name="home_mascot_greet_late_night">夜深了先睡啦，剩下的明天再吃</string>
+    <string name="home_mascot_greet_sunday">週日放假，想用再用就好喵</string>
+    <string name="home_mascot_chin_1">嗯～這邊再嚕一下</string>
+    <string name="home_mascot_chin_2">舒服到差點忘記幫你盯額度了</string>
+    <string name="home_mascot_chin_3">好了啦，手留著去問 AI 啦</string>
+    <string name="home_mascot_treat_1">這顆算加菜，碗裡還有 %1$d%%</string>
+    <string name="home_mascot_treat_2">喀滋喀滋…碗裡還剩 %1$d%%</string>
+    <string name="home_mascot_treat_3">謝啦！這碗還有 %1$d%%，今晚交給你清</string>
+    <string name="home_mascot_treat_unknown">喀滋喀滋…碗裡剩多少還在算喵</string>
+    <string name="home_mascot_switched">換看 %1$s 這碗囉，還有 %2$d%%</string>
+    <string name="home_mascot_switched_unknown">換看 %1$s 這碗囉</string>
+    <string name="home_mascot_ate_some">有吃有差！剛消掉 %1$d%%</string>
+    <string name="home_mascot_refilled">剛補滿新的一碗，慢慢吃</string>
 </resources>
