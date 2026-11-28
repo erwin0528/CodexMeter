@@ -1,5 +1,6 @@
 package com.kmnexus.codexmeter.ui.account
 
+import kotlin.math.roundToInt
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -431,6 +432,7 @@ private fun QuotaSummaryTile(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        summary.weeklyForecast?.let { WeeklyForecastLines(it) }
         // Original native balance (shown when conversion occurred)
         summary.originalValueText?.let { original ->
             Text(
@@ -724,3 +726,37 @@ private fun AccountStatusTone.softColor(): Color =
         AccountStatusTone.Warning -> CodexMeterTheme.colors.warningSoft
         AccountStatusTone.Danger -> CodexMeterTheme.colors.dangerSoft
     }
+
+/** 每週額度的預測兩行：照這速度何時用完（或會剩多少），以及每天可用多少。冷啟動時第一行不出現。 */
+@Suppress("FunctionNaming") // Compose 元件慣例用大寫開頭
+@Composable
+private fun WeeklyForecastLines(forecast: com.kmnexus.codexmeter.domain.quota.WeeklyPaceForecast) {
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
+    val paceLine = when {
+        forecast.runOutAt != null && forecast.actualUsedPercent < FULL_PERCENT -> stringResource(
+            R.string.account_forecast_run_out,
+            java.time.format.DateTimeFormatter.ofPattern("EEE HH:mm", locale)
+                .format(forecast.runOutAt.atZone(java.time.ZoneId.systemDefault())),
+        )
+        forecast.willLastToReset -> forecast.projectedLeftoverPercent
+            ?.takeIf { it >= MIN_REPORTED_LEFTOVER }
+            ?.let { stringResource(R.string.account_forecast_leftover, it.roundToInt()) }
+            ?: stringResource(R.string.account_forecast_exact)
+        else -> null
+    }
+    val dailyLine = forecast.dailyTargetPercent
+        ?.takeIf { forecast.actualUsedPercent < FULL_PERCENT }
+        ?.let { stringResource(R.string.account_forecast_daily, it.roundToInt()) }
+    listOfNotNull(paceLine, dailyLine).forEach {
+        Text(
+            text = it,
+            style = MaterialTheme.typography.bodySmall,
+            color = CodexMeterTheme.colors.primary,
+        )
+    }
+}
+
+private const val FULL_PERCENT = 100.0
+
+// 預估會剩不到 5% 就當作剛好用完，不用特別提醒
+private const val MIN_REPORTED_LEFTOVER = 5.0

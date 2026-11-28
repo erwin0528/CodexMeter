@@ -468,4 +468,8 @@
     <string name="home_mascot_switched_unknown">换看 %1$s 这碗啰</string>
     <string name="home_mascot_ate_some">有吃有差！刚消掉 %1$d%%</string>
     <string name="home_mascot_refilled">刚补满新的一碗，慢慢吃</string>
+    <string name="account_forecast_run_out">照这速度：%1$s 用完</string>
+    <string name="account_forecast_leftover">撑得到重置，预估还剩约 %1$d%%</string>
+    <string name="account_forecast_exact">照这速度刚好用完</string>
+    <string name="account_forecast_daily">每天可用约 %1$d%%</string>
 </resources>

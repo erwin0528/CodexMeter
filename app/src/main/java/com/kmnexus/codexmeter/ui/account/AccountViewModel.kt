@@ -77,6 +77,8 @@ data class AccountQuotaSummaryUi(
     val toppedUpText: String? = null,
     /** 這個額度下次重置的時間；餘額型或還沒開始計時時為 null。 */
     val resetAt: java.time.Instant? = null,
+    /** 只有每週額度才有：照目前速度的用完時間、會剩多少、每天可用多少。 */
+    val weeklyForecast: com.kmnexus.codexmeter.domain.quota.WeeklyPaceForecast? = null,
 )
 
 /** A per-window quota alert toggle (label + current on/off state). */
@@ -173,6 +175,7 @@ class AccountViewModel(
     private val refreshAllUseCase: AccountRefreshAllUseCase = NoopAccountRefreshAllUseCase,
     private val currencyPreferenceReader: CurrencyPreferenceReader = NoopAccountCurrencyPreferenceReader,
     private val exchangeRateReader: ExchangeRateReader = NoopAccountExchangeRateReader,
+    private val clock: java.time.Clock = java.time.Clock.systemDefaultZone(),
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(AccountUiState.Empty)
     private var isRefreshing = false
@@ -419,6 +422,8 @@ class AccountViewModel(
     }
 
     companion object {
+        private const val WEEK_SECONDS = 7L * 24 * 60 * 60
+
         fun factory(
             deleteUseCase: AccountDeleteUseCase,
             accountListUseCase: AccountListUseCase,
@@ -585,8 +590,23 @@ class AccountViewModel(
                 grantedText = formatProviderBalance(converted.grantedBalance, nativeCurrency),
                 toppedUpText = formatProviderBalance(converted.toppedUpBalance, nativeCurrency),
                 resetAt = converted.resetAt,
+                weeklyForecast = converted.weeklyForecast(),
             )
         }
+
+    // 只對一週長度、有用量與重置時間的額度做預測；其他（5 小時、餘額型）不顯示預測。
+    private fun QuotaWindow.weeklyForecast(): com.kmnexus.codexmeter.domain.quota.WeeklyPaceForecast? {
+        val used = usedPercent
+        val reset = resetAt
+        if (used == null || reset == null || limitWindowSeconds?.toLong() != WEEK_SECONDS) return null
+        return com.kmnexus.codexmeter.domain.quota.WeeklyUsagePace.forecast(
+            usedPercent = used,
+            resetAt = reset,
+            windowSeconds = WEEK_SECONDS,
+            now = clock.instant(),
+            zone = clock.zone,
+        )
+    }
 
     private fun ProviderAccount.buildAlertToggles(
         snapshot: QuotaSnapshot?,

@@ -142,7 +142,7 @@ private fun Header(context: Context, rows: List<OverviewRow>, hiddenCount: Int, 
     Column(modifier = GlanceModifier.fillMaxWidth()) {
         TitleRow(context, rows, hiddenCount, now, refreshing)
         // 第二行：「現在最該用哪個」，給想把額度用完的人一眼決定。
-        val pick = UseItAdvisor.recommend(rows)
+        val pick = UseItAdvisor.recommend(rows, now)
         if (pick != null) {
             val reset = pick.main?.resetAtEpochMillis?.let { formatReset(context, Instant.ofEpochMilli(it), now) }
             Text(

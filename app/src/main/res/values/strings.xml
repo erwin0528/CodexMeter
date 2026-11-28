@@ -468,4 +468,8 @@
     <string name="home_mascot_switched_unknown">Looking at %1$s\'s bowl now</string>
     <string name="home_mascot_ate_some">That counted! Just used %1$d%%</string>
     <string name="home_mascot_refilled">A fresh bowl just refilled, take your time</string>
+    <string name="account_forecast_run_out">Pace: runs out %1$s</string>
+    <string name="account_forecast_leftover">On pace to last, about %1$d%% left at reset</string>
+    <string name="account_forecast_exact">On pace to use it all up</string>
+    <string name="account_forecast_daily">About %1$d%% a day to use it all</string>
 </resources>
