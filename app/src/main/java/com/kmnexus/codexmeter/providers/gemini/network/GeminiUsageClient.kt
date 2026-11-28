@@ -95,8 +95,9 @@ class GeminiUsageClient(
     }
 
     private fun usageUrl(): String {
-        val signature = URLEncoder.encode(QUERY_SIGNATURE, Charsets.UTF_8)
-        val variables = URLEncoder.encode(QUERY_VARIABLES, Charsets.UTF_8)
+        // 用字串版的 "UTF-8"：Charset 版的 encode 要 Android 13（API 33）才有，Android 12 會直接當掉
+        val signature = URLEncoder.encode(QUERY_SIGNATURE, "UTF-8")
+        val variables = URLEncoder.encode(QUERY_VARIABLES, "UTF-8")
         return "${geminiBaseUrl.trimEnd('/')}$USAGE_PATH?query_signature=$signature&variables=$variables"
     }
 
