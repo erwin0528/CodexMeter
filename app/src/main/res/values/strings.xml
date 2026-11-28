@@ -436,7 +436,7 @@
     <string name="home_trend_detail_calls">%1$d calls</string>
     <string name="app_update_install_ready_title">Update ready to install</string>
     <string name="app_update_install_ready_text">Tap to install the new version of CodexMeter</string>
-    <string name="home_mascot_hint">Tap the line for bowl status · hold to purr</string>
+    <string name="home_mascot_hint">Tap bowl to feed · tap cat to pet · hold to purr</string>
     <string name="home_mascot_pet_hungry_1">Petting me won\'t empty the bowl, go use it!</string>
     <string name="home_mascot_pet_hungry_2">The bowl is still full, use it after work</string>
     <string name="home_mascot_pet_relaxed_1">Mmm… this pace is just right</string>
@@ -475,4 +475,11 @@
     <string name="home_updated_at_format">Updated %1$s</string>
     <string name="overview_widget_pool_format">Gemini total %1$d%%</string>
     <string name="overview_widget_pool_with_refill_format">Gemini total %1$d%% · next refill %2$s</string>
+    <string name="settings_cat_effects_title">Quota cat effects</string>
+    <string name="settings_cat_effects_full">Full</string>
+    <string name="settings_cat_effects_light">Light</string>
+    <string name="settings_cat_effects_static">Static</string>
+    <string name="settings_cat_effects_hidden">Hidden</string>
+    <string name="settings_cat_effects_description">Full: walks around. Light: moves only when you tap it. Static: no animation. Hidden: no cat on Home.</string>
+    <string name="settings_cat_effects_system_off">System animations are off, so the cat stays static.</string>
 </resources>

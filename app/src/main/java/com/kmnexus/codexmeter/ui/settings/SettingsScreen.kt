@@ -215,6 +215,7 @@ fun SettingsRoute(
         onRefreshIntervalSelected = viewModel::updateRefreshInterval,
         onCurrencyTargetSelected = viewModel::updateCurrencyTarget,
         onThemeModeSelected = viewModel::updateThemeMode,
+        onCatEffectsSelected = viewModel::updateCatEffects,
         onRetentionSelected = viewModel::updateRetention,
         onClearCurrentHistoryClick = viewModel::requestClearCurrentHistory,
         onClearAllHistoryClick = viewModel::requestClearAllHistory,
@@ -264,6 +265,7 @@ fun SettingsRoute(
     }
 }
 
+@Suppress("FunctionNaming", "LongMethod") // 設定頁的總排版，每個參數都是一張卡片的回呼
 @Composable
 fun SettingsScreen(
     uiState: SettingsUiState,
@@ -282,6 +284,7 @@ fun SettingsScreen(
     onRefreshIntervalSelected: (SettingsRefreshInterval) -> Unit = {},
     onCurrencyTargetSelected: (String) -> Unit = {},
     onThemeModeSelected: (ThemeMode) -> Unit = {},
+    onCatEffectsSelected: (com.kmnexus.codexmeter.domain.theme.CatEffectsLevel) -> Unit = {},
     onRetentionSelected: (SettingsRetentionOption) -> Unit = {},
     onClearCurrentHistoryClick: () -> Unit = {},
     onClearAllHistoryClick: () -> Unit = {},
@@ -313,6 +316,7 @@ fun SettingsScreen(
         AppearanceCard(
             appearance = uiState.appearance,
             onThemeModeSelected = onThemeModeSelected,
+            onCatEffectsSelected = onCatEffectsSelected,
         )
         SettingsSectionLabel(R.string.settings_group_persistent_notification)
         PersistentNotificationCard(

@@ -150,6 +150,8 @@ data class SettingsCurrencyUi(
 
 data class SettingsAppearanceUi(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val catEffects: com.kmnexus.codexmeter.domain.theme.CatEffectsLevel =
+        com.kmnexus.codexmeter.domain.theme.CatEffectsLevel.FULL,
 )
 
 /** Reschedules the background refresh worker when the interval changes (0 minutes = cancel/manual). */
@@ -556,6 +558,11 @@ class SettingsViewModel(
         }
     }
 
+    fun updateCatEffects(level: com.kmnexus.codexmeter.domain.theme.CatEffectsLevel) {
+        update { it.copy(appearance = it.appearance.copy(catEffects = level)) }
+        viewModelScope.launch { appearancePreferenceStore.setCatEffects(level) }
+    }
+
     fun updateThemeMode(mode: ThemeMode) {
         themeStoreWriteVersion += 1
         update { it.copy(appearance = it.appearance.copy(themeMode = mode)) }
@@ -634,6 +641,9 @@ class SettingsViewModel(
                         state.copy(appearance = state.appearance.copy(themeMode = themeMode))
                     }
                 }
+            }
+            runCatching { appearancePreferenceStore.catEffects.first() }.onSuccess { level ->
+                update { state -> state.copy(appearance = state.appearance.copy(catEffects = level)) }
             }
             val writesCommittedBeforeRead = notificationPreferenceWritesCommitted
             runCatching {

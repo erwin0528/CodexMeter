@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.kmnexus.codexmeter.domain.theme.AppearancePreferenceStore
+import com.kmnexus.codexmeter.domain.theme.CatEffectsLevel
 import com.kmnexus.codexmeter.domain.theme.ThemeMode
 import java.io.File
 import kotlinx.coroutines.flow.Flow
@@ -21,8 +22,16 @@ class AppearancePreferences(
         dataStore.edit { it[Keys.THEME_MODE] = mode.storageValue }
     }
 
+    override val catEffects: Flow<CatEffectsLevel> =
+        dataStore.data.map { prefs -> CatEffectsLevel.fromStorage(prefs[Keys.CAT_EFFECTS]) }
+
+    override suspend fun setCatEffects(level: CatEffectsLevel) {
+        dataStore.edit { it[Keys.CAT_EFFECTS] = level.storageValue }
+    }
+
     private object Keys {
         val THEME_MODE = stringPreferencesKey("theme_mode")
+        val CAT_EFFECTS = stringPreferencesKey("cat_effects")
     }
 
     companion object {

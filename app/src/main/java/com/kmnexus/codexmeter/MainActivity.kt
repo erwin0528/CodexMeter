@@ -25,6 +25,8 @@ class MainActivity : ComponentActivity() {
             val themeMode by codexMeterApp.appearancePreferenceStore.themeMode
                 .collectAsStateWithLifecycle(initialValue = codexMeterApp.initialThemeMode)
             val darkAppearance = resolveDarkAppearance(themeMode, isSystemInDarkTheme())
+            val catEffects by codexMeterApp.appearancePreferenceStore.catEffects
+                .collectAsStateWithLifecycle(initialValue = com.kmnexus.codexmeter.domain.theme.CatEffectsLevel.FULL)
 
             val view = LocalView.current
             if (!view.isInEditMode) {
@@ -36,6 +38,9 @@ class MainActivity : ComponentActivity() {
             }
 
             CodexMeterTheme(themeMode = themeMode, fontScheme = CodexMeterFontScheme.MonoFocusGeistMono) {
+              androidx.compose.runtime.CompositionLocalProvider(
+                  com.kmnexus.codexmeter.ui.home.LocalCatEffects provides catEffects,
+              ) {
                 CodexMeterNavHost(
                     startDestination = startDestination,
                     launchDestinationValue = launchDestinationValue,
@@ -66,6 +71,7 @@ class MainActivity : ComponentActivity() {
                     currencyPreferenceStore = codexMeterApp.currencyPreferenceStore,
                     appearancePreferenceStore = codexMeterApp.appearancePreferenceStore,
                 )
+              }
             }
         }
     }

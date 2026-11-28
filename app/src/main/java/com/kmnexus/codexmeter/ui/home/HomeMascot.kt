@@ -1,5 +1,12 @@
 package com.kmnexus.codexmeter.ui.home
 
+import kotlin.math.sin
+import kotlin.math.abs
+import com.kmnexus.codexmeter.domain.theme.CatEffectsLevel
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.annotation.StringRes
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
@@ -137,7 +144,9 @@ internal fun HomeMascotCard(
     bowl: MascotBowlSnapshot? = null,
     now: LocalDateTime = LocalDateTime.now(),
 ) {
-    val interaction = rememberMascotInteraction()
+    val level = LocalCatEffects.current.respecting(rememberCodexMeterAnimatorsEnabled())
+    if (level == CatEffectsLevel.HIDDEN) return
+    val interaction = rememberMascotInteraction(effectsAllowAnimation = level.interactionAnimations)
     val moodLine = if (state.mood == HomeMascotMood.AteAll && state.refillAt != null) {
         stringResource(R.string.home_mascot_ate_all_refill, formattedInstant(state.refillAt))
     } else {
@@ -146,69 +155,98 @@ internal fun HomeMascotCard(
     val bowlLine = HomeMascotChatter.bowlLine(state, state.resetAt?.let { formattedInstant(it) })
     MascotAutoTalk(interaction, bowl, now)
     val line = interaction.line?.let { reactionText(it) } ?: moodLine
+    val sleepy = HomeMascotChatter.isLateNight(now)
     QmLiquidGlassSurface(
         modifier = Modifier.fillMaxWidth(),
         role = LiquidGlassSurfaceRole.Card,
         cornerRadius = 28.dp,
-        contentPadding = PaddingValues(horizontal = CodexMeterSpacing.lg, vertical = CodexMeterSpacing.md),
+        contentPadding = PaddingValues(horizontal = CodexMeterSpacing.lg, vertical = CodexMeterSpacing.sm),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(CodexMeterSpacing.md),
-        ) {
-            QuotaCat(
-                mood = state.mood,
+        // 整張卡片高度固定：台詞列、舞台、提示列都鎖高度，台詞長短不會把下面的額度卡推來推去
+        Column(modifier = Modifier.fillMaxWidth()) {
+            MascotLineRow(line = line, onClick = { interaction.say(HomeMascotReaction.Bowl, bowlLine) })
+            CatStage(
+                state = state,
                 interaction = interaction,
-                sleepy = HomeMascotChatter.isLateNight(now),
-                modifier = Modifier
-                    .size(80.dp)
-                    .semantics { contentDescription = line }
-                    .mascotGestures(
-                        interaction = interaction,
-                        onPet = { interaction.pet { count -> HomeMascotChatter.petLine(state.mood, count) } },
-                        onTreat = {
-                            interaction.treat { count -> HomeMascotChatter.treatLine(count, state.remainingPercent) }
-                        },
-                        onPurr = { interaction.purr(HomeMascotLine(R.string.home_mascot_purr)) },
-                        onChinRelease = { interaction.chinRelease(HomeMascotChatter::chinLine) },
-                    ),
-            )
-            // 右邊整塊文字可點：報碗裡剩多少、幾點補貨
-            MascotTextColumn(
+                level = level,
+                sleepy = sleepy,
                 line = line,
-                modifier = Modifier.weight(1f),
-                onClick = { interaction.say(HomeMascotReaction.Bowl, bowlLine) },
+            )
+            Text(
+                text = stringResource(R.string.home_mascot_hint),
+                style = MaterialTheme.typography.labelSmall,
+                color = CodexMeterTheme.colors.secondary.copy(alpha = 0.7f),
+                maxLines = 1,
+                softWrap = false,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth().height(HINT_ROW_HEIGHT),
             )
         }
     }
 }
 
+/** 單行台詞列：固定 28dp 高、只准一行，太長就用「…」收尾；整列可點，報碗況。 */
 @Suppress("FunctionNaming") // Compose 元件慣例用大寫開頭
 @Composable
-private fun MascotTextColumn(line: String, modifier: Modifier, onClick: () -> Unit) {
-    Column(
-        modifier = modifier.clickable(onClick = onClick),
-        verticalArrangement = Arrangement.spacedBy(CodexMeterSpacing.xs),
+private fun MascotLineRow(line: String, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(LINE_ROW_HEIGHT)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.CenterStart,
     ) {
-        Text(
-            text = stringResource(R.string.home_mascot_name),
-            style = MaterialTheme.typography.labelSmall,
-            color = CodexMeterTheme.colors.secondary,
-            maxLines = 1,
-        )
         Text(
             text = line,
             style = MaterialTheme.typography.titleSmall,
             color = CodexMeterTheme.colors.primary,
-            maxLines = 2,
-        )
-        Text(
-            text = stringResource(R.string.home_mascot_hint),
-            style = MaterialTheme.typography.labelSmall,
-            color = CodexMeterTheme.colors.secondary.copy(alpha = 0.7f),
             maxLines = 1,
+            softWrap = false,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/**
+ * 貓的舞台：碗固定在左邊，貓可以在整條舞台上散步（特效「全開」才會走）。
+ * 點貓＝摸頭、雙擊貓＝加菜、長按貓＝呼嚕、點碗＝加菜並叫貓回來吃、點空地＝叫貓走過去、左右滑＝嚕下巴。
+ */
+@Suppress("FunctionNaming") // Compose 元件慣例用大寫開頭
+@Composable
+private fun CatStage(
+    state: HomeMascotState,
+    interaction: MascotInteraction,
+    level: CatEffectsLevel,
+    sleepy: Boolean,
+    line: String,
+) {
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth().height(STAGE_HEIGHT)) {
+        val unitDp = STAGE_HEIGHT / CANVAS_UNITS
+        val maxX = (maxWidth / unitDp - CAT_FOOTPRINT_UNITS).coerceAtLeast(0f)
+        val walker = rememberCatWalker(canWalk = level.walks && !sleepy, maxX = maxX)
+        val feed = {
+            interaction.treat { count -> HomeMascotChatter.treatLine(count, state.remainingPercent) }
+            walker.goHome()
+        }
+        QuotaCat(
+            mood = state.mood,
+            interaction = interaction,
+            sleepy = sleepy,
+            idleAnimations = level.idleAnimations,
+            walkX = { walker.x },
+            facingLeft = walker.facingLeft,
+            modifier = Modifier
+                .fillMaxSize()
+                .semantics { contentDescription = line }
+                .catStageGestures(
+                    interaction = interaction,
+                    hitTest = { offsetPx -> stageTarget(offsetPx / (size.height / CANVAS_UNITS), walker.x) },
+                    onPet = { interaction.pet { count -> HomeMascotChatter.petLine(state.mood, count) } },
+                    onFeed = feed,
+                    onPurr = { interaction.purr(HomeMascotLine(R.string.home_mascot_purr)) },
+                    onCallTo = { unitX -> walker.walkTo((unitX - CAT_CENTER_UNITS).coerceIn(0f, maxX)) },
+                    onChinRelease = { interaction.chinRelease(HomeMascotChatter::chinLine) },
+                ),
         )
     }
 }
@@ -286,12 +324,16 @@ private fun stillCatMotion(): CatMotion {
 }
 
 /** 原創線條貓，坐在飼料碗左邊。座標以 64×64 為底再縮放。 */
-@Suppress("FunctionNaming") // Compose 元件慣例用大寫開頭
+// 繪製參數都是同一隻貓的狀態，拆成物件反而難讀；畫的分支是各種心情與互動
+@Suppress("FunctionNaming", "LongParameterList", "CyclomaticComplexMethod")
 @Composable
 private fun QuotaCat(
     mood: HomeMascotMood,
     interaction: MascotInteraction,
     sleepy: Boolean,
+    idleAnimations: Boolean,
+    walkX: () -> Float,
+    facingLeft: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val colors = CodexMeterTheme.colors
@@ -307,7 +349,7 @@ private fun QuotaCat(
     // 切帳號或刷新時，碗裡的飼料高度和顏色慢慢流過去，不要一下跳
     val foodColor by animateColorAsState(targetFoodColor, label = "food-color")
     val bowlFill by animateFloatAsState(mood.bowlFill, label = "bowl-fill")
-    val motion = rememberCatMotion(rememberCodexMeterAnimatorsEnabled())
+    val motion = rememberCatMotion(rememberCodexMeterAnimatorsEnabled() && idleAnimations)
 
     Canvas(modifier = modifier) {
         val unit = size.minDimension / 64f
@@ -316,26 +358,34 @@ private fun QuotaCat(
             val reaction = interaction.reaction
             val purring = reaction == HomeMascotReaction.Purr
             val idleAsleep = sleepy && reaction == HomeMascotReaction.None
-            // 摸頭時整隻貓往上跳一下；呼嚕時尾巴甩得比較大
-            translate(top = -HOP_HEIGHT * interaction.hop) {
-                drawTail(ink, stroke, swing = motion.tail.value * if (purring) PURR_TAIL_SWING else 1f)
-                drawBody(ink, bodyFill, stroke)
-                drawHead(
-                    mood,
-                    ink,
-                    bodyFill,
-                    stroke,
-                    blink = if (idleAsleep) 0f else motion.blink.value,
-                    // 呼嚕、嚕下巴時瞇眼
-                    squint = purring || reaction == HomeMascotReaction.Chin,
-                    extraTilt = interaction.tilt * CHIN_TILT_DEGREES,
-                )
+            // 走路位置只在畫的階段讀，不會讓整個畫面重組；走路時身體跟著步伐上下晃
+            val x = walkX()
+            val walkBob = abs(sin(x * WALK_BOB_FREQUENCY)) * WALK_BOB_HEIGHT
+            translate(left = x) {
+                // 往左走就把貓左右翻過來
+                scale(if (facingLeft) -1f else 1f, 1f, pivot = Offset(CAT_CENTER_UNITS, 0f)) {
+                    translate(top = -HOP_HEIGHT * interaction.hop - walkBob) {
+                        drawTail(ink, stroke, swing = motion.tail.value * if (purring) PURR_TAIL_SWING else 1f)
+                        drawBody(ink, bodyFill, stroke)
+                        drawHead(
+                            mood,
+                            ink,
+                            bodyFill,
+                            stroke,
+                            blink = if (idleAsleep) 0f else motion.blink.value,
+                            // 呼嚕、嚕下巴時瞇眼
+                            squint = purring || reaction == HomeMascotReaction.Chin,
+                            extraTilt = interaction.tilt * CHIN_TILT_DEGREES,
+                        )
+                    }
+                }
+                drawReactionOverlay(reaction, interaction.effect, ink, colors.danger)
+                if (idleAsleep) drawSleepyZ(ink, drift = (motion.tail.value + 1f) / 2f)
             }
-            drawReactionOverlay(reaction, interaction.effect, ink, colors.danger)
-            if (idleAsleep) drawSleepyZ(ink, drift = (motion.tail.value + 1f) / 2f)
             drawBowl(mood, bowlFill, ink, foodColor, stroke)
             if (reaction == HomeMascotReaction.Treat) drawTreat(foodColor, ink, fall = interaction.effect)
-            drawMoodDecoration(mood, motion, ink, bodyFill, foodColor)
+            // 拍碗、冒泡、星星這些心情動作都是坐在碗邊才做的；貓走開時先不畫
+            if (x < AT_HOME_UNITS) drawMoodDecoration(mood, motion, ink, bodyFill, foodColor)
         }
     }
 }
@@ -570,3 +620,31 @@ private fun DrawScope.drawTreat(food: Color, ink: Color, fall: Float) {
         }
     }
 }
+
+/** 點在舞台哪裡：貓身上、碗、或空地（附上點的位置，單位是畫布單位）。 */
+internal sealed interface StageTarget {
+    data object Cat : StageTarget
+    data object Bowl : StageTarget
+    data class Floor(val unitX: Float) : StageTarget
+}
+
+/** 碗固定在畫布 34～64 單位；貓身體大約在自己位置往右 4～38 單位。貓擋在碗前面時優先算點到貓。 */
+internal fun stageTarget(unitX: Float, catX: Float): StageTarget = when {
+    unitX in (catX + CAT_HIT_LEFT)..(catX + CAT_HIT_RIGHT) -> StageTarget.Cat
+    unitX in BOWL_HIT_LEFT..BOWL_HIT_RIGHT -> StageTarget.Bowl
+    else -> StageTarget.Floor(unitX)
+}
+
+private val LINE_ROW_HEIGHT = 28.dp
+private val STAGE_HEIGHT = 82.dp
+private val HINT_ROW_HEIGHT = 20.dp
+private const val CANVAS_UNITS = 64f
+private const val CAT_FOOTPRINT_UNITS = 40f
+private const val CAT_CENTER_UNITS = 20f
+private const val CAT_HIT_LEFT = 2f
+private const val CAT_HIT_RIGHT = 38f
+private const val BOWL_HIT_LEFT = 34f
+private const val BOWL_HIT_RIGHT = 64f
+private const val AT_HOME_UNITS = 2f
+private const val WALK_BOB_FREQUENCY = 0.6f
+private const val WALK_BOB_HEIGHT = 1.5f

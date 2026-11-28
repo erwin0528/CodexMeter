@@ -55,20 +55,28 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.kmnexus.codexmeter.R
+import com.kmnexus.codexmeter.domain.theme.CatEffectsLevel
 import com.kmnexus.codexmeter.domain.theme.ThemeMode
 import com.kmnexus.codexmeter.ui.motion.rememberCodexMeterAnimatorsEnabled
 import com.kmnexus.codexmeter.ui.theme.CodexMeterTheme
 import com.kmnexus.codexmeter.ui.theme.CodexMeterShapes
 import com.kmnexus.codexmeter.ui.theme.CodexMeterSpacing
 
+@Suppress("FunctionNaming") // Compose 元件慣例用大寫開頭
 @Composable
 internal fun AppearanceCard(
     appearance: SettingsAppearanceUi,
     onThemeModeSelected: (ThemeMode) -> Unit,
+    onCatEffectsSelected: (CatEffectsLevel) -> Unit = {},
 ) {
     SettingsSurfaceCard {
         Column(verticalArrangement = Arrangement.spacedBy(CodexMeterSpacing.md)) {
-            ThemeModeSegmentedControl(
+            SegmentedChoice(
+                options = listOf(
+                    ThemeMode.LIGHT to R.string.settings_appearance_light,
+                    ThemeMode.DARK to R.string.settings_appearance_dark,
+                    ThemeMode.SYSTEM to R.string.settings_appearance_system,
+                ),
                 selected = appearance.themeMode,
                 onSelected = onThemeModeSelected,
             )
@@ -77,20 +85,44 @@ internal fun AppearanceCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            // 額度貓特效：讓使用者自己決定要多活潑、多耗電
+            Text(
+                text = stringResource(R.string.settings_cat_effects_title),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            SegmentedChoice(
+                options = listOf(
+                    CatEffectsLevel.FULL to R.string.settings_cat_effects_full,
+                    CatEffectsLevel.LIGHT to R.string.settings_cat_effects_light,
+                    CatEffectsLevel.STATIC to R.string.settings_cat_effects_static,
+                    CatEffectsLevel.HIDDEN to R.string.settings_cat_effects_hidden,
+                ),
+                selected = appearance.catEffects,
+                onSelected = onCatEffectsSelected,
+            )
+            Text(
+                text = stringResource(
+                    if (rememberCodexMeterAnimatorsEnabled()) {
+                        R.string.settings_cat_effects_description
+                    } else {
+                        R.string.settings_cat_effects_system_off
+                    },
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
 
+@Suppress("FunctionNaming", "LongMethod") // Compose 元件；滑動選取框的動畫與排版寫在一起比較好讀
 @Composable
-private fun ThemeModeSegmentedControl(
-    selected: ThemeMode,
-    onSelected: (ThemeMode) -> Unit,
+private fun <T> SegmentedChoice(
+    options: List<Pair<T, Int>>,
+    selected: T,
+    onSelected: (T) -> Unit,
 ) {
-    val options = listOf(
-        ThemeMode.LIGHT to R.string.settings_appearance_light,
-        ThemeMode.DARK to R.string.settings_appearance_dark,
-        ThemeMode.SYSTEM to R.string.settings_appearance_system,
-    )
     val pillShape = RoundedCornerShape(999.dp)
     val trackColor = CodexMeterTheme.colors.neutralAlt
     val selectedColor = CodexMeterTheme.colors.accent

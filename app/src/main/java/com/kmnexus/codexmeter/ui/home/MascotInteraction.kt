@@ -141,42 +141,14 @@ internal class MascotInteraction(
 }
 
 @Composable
-internal fun rememberMascotInteraction(): MascotInteraction {
+internal fun rememberMascotInteraction(effectsAllowAnimation: Boolean = true): MascotInteraction {
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
-    val animate = rememberCodexMeterAnimatorsEnabled()
+    // 系統關動畫或使用者把特效調到「靜態」時，只換台詞不播動作
+    val animate = rememberCodexMeterAnimatorsEnabled() && effectsAllowAnimation
     val pets = rememberSaveable { mutableIntStateOf(0) }
     val chins = rememberSaveable { mutableIntStateOf(0) }
     val treats = rememberSaveable { mutableIntStateOf(0) }
     return remember(animate) { MascotInteraction(scope, haptics, animate, MascotCounters(pets, chins, treats)) }
 }
 
-/**
- * 貓圖整塊只給貓用（Android 建議可點元件至少 48dp，不再把 72dp 切成兩半）：
- * 點＝摸頭、雙擊＝加菜、長按＝呼嚕、左右滑＝嚕下巴。看碗改成點右邊的文字。
- */
-internal fun Modifier.mascotGestures(
-    interaction: MascotInteraction,
-    onPet: () -> Unit,
-    onTreat: () -> Unit,
-    onPurr: () -> Unit,
-    onChinRelease: () -> Unit,
-): Modifier = this
-    .pointerInput(interaction) {
-        detectTapGestures(
-            onTap = { onPet() },
-            onDoubleTap = { onTreat() },
-            onLongPress = { onPurr() },
-        )
-    }
-    .pointerInput(interaction) {
-        detectHorizontalDragGestures(
-            onDragEnd = { onChinRelease() },
-            onDragCancel = { onChinRelease() },
-        ) { change, dragAmount ->
-            change.consume()
-            interaction.chinDrag(dragAmount / size.width * CHIN_SENSITIVITY)
-        }
-    }
-
-private const val CHIN_SENSITIVITY = 2f

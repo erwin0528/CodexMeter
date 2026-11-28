@@ -436,7 +436,7 @@
     <string name="home_trend_detail_calls">%1$d 次</string>
     <string name="app_update_install_ready_title">更新已就緒</string>
     <string name="app_update_install_ready_text">點這裡安裝新版 CodexMeter</string>
-    <string name="home_mascot_hint">點台詞看碗況 · 長按呼嚕</string>
+    <string name="home_mascot_hint">點碗加菜 · 點貓摸頭 · 長按呼嚕</string>
     <string name="home_mascot_pet_hungry_1">摸我不如去餵碗啦</string>
     <string name="home_mascot_pet_hungry_2">碗還滿滿的喵，下班快用</string>
     <string name="home_mascot_pet_relaxed_1">嗯…這節奏剛剛好</string>
@@ -475,4 +475,11 @@
     <string name="home_updated_at_format">更新於 %1$s</string>
     <string name="overview_widget_pool_format">Gemini 合計 %1$d%%</string>
     <string name="overview_widget_pool_with_refill_format">Gemini 合計 %1$d%% · 下次補貨 %2$s</string>
+    <string name="settings_cat_effects_title">額度貓特效</string>
+    <string name="settings_cat_effects_full">全開</string>
+    <string name="settings_cat_effects_light">輕量</string>
+    <string name="settings_cat_effects_static">靜態</string>
+    <string name="settings_cat_effects_hidden">隱藏</string>
+    <string name="settings_cat_effects_description">全開會散步；輕量只在點牠時動；靜態完全不動畫；隱藏就不顯示貓。</string>
+    <string name="settings_cat_effects_system_off">系統已關閉動畫，額度貓會自動保持靜態。</string>
 </resources>
